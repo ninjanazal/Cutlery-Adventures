@@ -1,0 +1,6 @@
+E:\GitHub\Cutlery Adventures\develop\server\CutleryAdventures - Server\CutleryAdventures - Server\bin\Debug\CutleryAdventures - Server.exe.config
+E:\GitHub\Cutlery Adventures\develop\server\CutleryAdventures - Server\CutleryAdventures - Server\bin\Debug\CutleryAdventures - Server.exe
+E:\GitHub\Cutlery Adventures\develop\server\CutleryAdventures - Server\CutleryAdventures - Server\bin\Debug\CutleryAdventures - Server.pdb
+E:\GitHub\Cutlery Adventures\develop\server\CutleryAdventures - Server\CutleryAdventures - Server\obj\Debug\CutleryAdventures - Server.csprojAssemblyReference.cache
+E:\GitHub\Cutlery Adventures\develop\server\CutleryAdventures - Server\CutleryAdventures - Server\obj\Debug\CutleryAdventures - Server.exe
+E:\GitHub\Cutlery Adventures\develop\server\CutleryAdventures - Server\CutleryAdventures - Server\obj\Debug\CutleryAdventures - Server.pdb
