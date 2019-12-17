@@ -52,3 +52,7 @@ public class Console : MonoBehaviour
     }
 
 }
+
+
+//TODO
+// -encontrar o numero maximo de linhas para a resoluçao
