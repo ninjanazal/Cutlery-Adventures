@@ -51,10 +51,11 @@ public class Console : MonoBehaviour
     private void CalculateConsoleBounds()
     {
         //calculate max chars per line
-        _maxBounds.x = (_consoleCanvas.GetComponent<RectTransform>().rect.width * 134) / 803;
+        _maxBounds.x = (int)(_consoleCanvas.GetComponent<RectTransform>().rect.width * 134) / 803;
 
         //calculate max lines 
-        _maxBounds.y = (_consoleCanvas.GetComponent<RectTransform>().rect.height * 50) / 602;
+        _maxBounds.y = (int)(_consoleCanvas.GetComponent<RectTransform>().rect.height * 50) / 602;
+        Debug.Log(_maxBounds);
     }
 
     #endregion
