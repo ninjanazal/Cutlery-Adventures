@@ -7,6 +7,5 @@ public class NetworkController : MonoBehaviour
     private void Start()
     {
         Console.Write("Staring Server...", Color.green);
-
     }
 }
