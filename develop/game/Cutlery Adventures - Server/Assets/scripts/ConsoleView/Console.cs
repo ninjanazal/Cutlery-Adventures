@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-[ExecuteAlways]
 public class Console : MonoBehaviour
 {
 
@@ -24,6 +23,8 @@ public class Console : MonoBehaviour
 
         // clean console on start
         _consoleLines.Enqueue("");
+        _maxBounds = new Vector2(); //iniciate vector for Bounds
+
 
         CalculateConsoleBounds();
         UpdateConsole();
@@ -39,14 +40,16 @@ public class Console : MonoBehaviour
         Canvas.ForceUpdateCanvases();
 
         // if the numbers of lines is bigger then the lines that can be displayed
-        // pop the oldest entry
-        while (_consoleText.cachedTextGenerator.lineCount > _maxBounds.y) { _consoleLines.Dequeue(); }
+        // dequeue the oldest entry
+        while (_consoleText.cachedTextGenerator.lineCount > _maxBounds.y)
+        {
+            _consoleLines.Dequeue();
+            Canvas.ForceUpdateCanvases();
+        }
     }
 
     private void CalculateConsoleBounds()
     {
-        _maxBounds = new Vector2(0.0f, 0.0f);
-
         //calculate max chars per line
         _maxBounds.x = (_consoleCanvas.GetComponent<RectTransform>().rect.width * 134) / 803;
 
@@ -65,7 +68,8 @@ public class Console : MonoBehaviour
     /// <param name="msg"></param> Message to write
     public static void Write(string msg)
     {
-        _consoleLines.Enqueue(msg + "\n");
+        string _strToWrited = msg + "\n";
+        _consoleLines.Enqueue(_strToWrited);
         UpdateConsole();
     }
 
