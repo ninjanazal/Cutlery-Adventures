@@ -6,13 +6,11 @@ using UnityEngine.UI;
 
 public class Console : MonoBehaviour
 {
-
     private static Queue<String> _consoleLines;
     private Canvas _consoleCanvas;
     private static Text _consoleText;
 
-    private static Vector2 _maxBounds;
-
+    private static int _maxVisibleLines;
 
     // Set references for GO and start the lineList
     private void Awake()
@@ -23,8 +21,6 @@ public class Console : MonoBehaviour
 
         // clean console on start
         _consoleLines.Enqueue("");
-        _maxBounds = new Vector2(); //iniciate vector for Bounds
-
 
         CalculateConsoleBounds();
         UpdateConsole();
@@ -41,7 +37,8 @@ public class Console : MonoBehaviour
 
         // if the numbers of lines is bigger then the lines that can be displayed
         // dequeue the oldest entry
-        while (_consoleText.cachedTextGenerator.lineCount > _maxBounds.y)
+
+        while (_consoleText.cachedTextGenerator.lineCount > _maxVisibleLines)
         {
             _consoleLines.Dequeue();
             Canvas.ForceUpdateCanvases();
@@ -50,12 +47,16 @@ public class Console : MonoBehaviour
 
     private void CalculateConsoleBounds()
     {
-        //calculate max chars per line
-        _maxBounds.x = (int)(_consoleCanvas.GetComponent<RectTransform>().rect.width * 134) / 803;
+        //calculate max lines         
+        _maxVisibleLines = (int)(_consoleCanvas.GetComponent<RectTransform>().rect.height /
+            (_consoleText.font.lineHeight));
 
-        //calculate max lines 
-        _maxBounds.y = (int)(_consoleCanvas.GetComponent<RectTransform>().rect.height * 50) / 602;
-        Debug.Log(_maxBounds);
+        // Console Debug Writing
+        // write console specs 
+        // write max visible lines
+        Write("-Console Size: " + _consoleCanvas.GetComponent<RectTransform>().rect.height +
+            " -Font size: " + _consoleText.fontSize + " -Line Height: " + _consoleText.font.lineHeight);
+        Write("-visible Lines: " + _maxVisibleLines, Color.gray);
     }
 
     #endregion
@@ -89,5 +90,13 @@ public class Console : MonoBehaviour
         UpdateConsole();
     }
 
+    /// <summary>
+    /// Clears console text
+    /// </summary>
+    public static void Clear()
+    {
+        _consoleLines.Clear();
+        UpdateConsole();
+    }
     #endregion
 }

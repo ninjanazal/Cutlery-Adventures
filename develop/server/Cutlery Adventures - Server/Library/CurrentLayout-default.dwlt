@@ -73,7 +73,7 @@ MonoBehaviour:
   m_MinSize: {x: 204, y: 322}
   m_MaxSize: {x: 4004, y: 8022}
   vertical: 1
-  controlID: 70
+  controlID: 89
 --- !u!114 &4
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -178,7 +178,7 @@ MonoBehaviour:
   m_MinSize: {x: 638, y: 322}
   m_MaxSize: {x: 18008, y: 10022}
   vertical: 0
-  controlID: 129
+  controlID: 111
 --- !u!114 &8
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -203,7 +203,7 @@ MonoBehaviour:
   m_MinSize: {x: 915, y: 322}
   m_MaxSize: {x: 22010, y: 10022}
   vertical: 0
-  controlID: 128
+  controlID: 110
 --- !u!114 &9
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -335,12 +335,13 @@ MonoBehaviour:
     m_ShowAllHits: 0
     m_SkipHidden: 0
     m_SearchArea: 1
-    m_Folders: []
+    m_Folders:
+    - Assets/scripts
   m_ViewMode: 0
   m_StartGridSize: 16
   m_LastFolders: []
   m_LastFoldersGridSize: 16
-  m_LastProjectPath: D:\Documentos\Github\Cutlery-Adventures\develop\game\Cutlery
+  m_LastProjectPath: D:\Documentos\Github\Cutlery-Adventures\develop\server\Cutlery
     Adventures - Server
   m_LockTracker:
     m_IsLocked: 0
@@ -499,8 +500,8 @@ MonoBehaviour:
   m_SceneHierarchy:
     m_TreeViewState:
       scrollPos: {x: 0, y: 0}
-      m_SelectedIDs: 90310000
-      m_LastClickedID: 12688
+      m_SelectedIDs: a6310000
+      m_LastClickedID: 12710
       m_ExpandedIDs: 72fbffff963100009e310000
       m_RenameOverlay:
         m_UserAcceptedRename: 0
@@ -561,9 +562,9 @@ MonoBehaviour:
   m_PlayAudio: 0
   m_AudioPlay: 0
   m_Position:
-    m_Target: {x: 0.91338336, y: 0.5791892, z: 70.23965}
+    m_Target: {x: -0.7285001, y: 0.84298843, z: 58.562485}
     speed: 2
-    m_Value: {x: 0.91338336, y: 0.5791892, z: 70.23965}
+    m_Value: {x: -0.7285001, y: 0.84298843, z: 58.562485}
   m_RenderMode: 0
   m_CameraMode:
     drawMode: 0
@@ -596,9 +597,9 @@ MonoBehaviour:
     speed: 2
     m_Value: {x: 0, y: 0, z: 0, w: 1}
   m_Size:
-    m_Target: 14.34627
+    m_Target: 10.773519
     speed: 2
-    m_Value: 14.34627
+    m_Value: 10.773519
   m_Ortho:
     m_Target: 1
     speed: 2

@@ -1,10 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-
+﻿using UnityEngine;
 public class NetworkController : MonoBehaviour
 {
-    private void Start()
+    public  void StartServer()
     {
         Console.Write("Staring Server...", Color.green);
     }
