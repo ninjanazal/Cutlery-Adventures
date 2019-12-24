@@ -17,7 +17,7 @@ public class ServerSettings : MonoBehaviour
         Console.Write("Server TRate= " + _targetTickRate);
 
         // start network Controller
-        _networkController = GameObject.Find("networkController").GetComponent<NetworkController>();
+        _networkController = GetComponent<NetworkController>();
         _networkController.StartServer();
     }
 
