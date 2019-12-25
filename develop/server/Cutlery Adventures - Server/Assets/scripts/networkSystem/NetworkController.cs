@@ -4,6 +4,7 @@ using UnityEngine;
 using System.Net;
 using System.Net.Sockets;
 
+
 public class NetworkController : MonoBehaviour
 {
     // public Vars
@@ -11,19 +12,35 @@ public class NetworkController : MonoBehaviour
     public string serverIp = "127.0.0.1";       // server Ip (loopBacK)
     public int TcpPort = 7701, UdpPort = 7702;  // ports
 
-    //private Vars
+    //server internal vars
+    // server states
+    private enum ServerState { AcceptingConnections, ServerFull }
+
+    //connection
     private List<Player> _connectedPlayers; // list of players for the next match
-    private TcpListener _tcpListener;
-    private IPAddress _ipAddress;
+    private TcpListener _tcpListener;       // listener for tcp Connection
+    private IPAddress _ipAddress;           // IP adress
+
+    private UdpClient _udpListener;         // listener for UDP Connection
+    private IPEndPoint _remoteEndPoint;     // valid end points
+
 
     // Start Server Function
     public void StartServer()
     {
         // setting the ip as IPAddress
         _ipAddress = IPAddress.Parse(serverIp);
+
+
         // defining tcpListener
         _tcpListener = new TcpListener(_ipAddress, TcpPort);
         _tcpListener.Start();   // start tcpListener
+
+        // defining udpListener
+        // defining from where can server get data
+        _remoteEndPoint = new IPEndPoint(IPAddress.Any, UdpPort);
+        _udpListener = new UdpClient(_remoteEndPoint);
+
         Console.Write("Staring Server...", Color.green);
     }
 }
