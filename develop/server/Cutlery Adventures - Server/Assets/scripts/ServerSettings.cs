@@ -29,7 +29,7 @@ public class ServerSettings : MonoBehaviour
         {
             _targetTickRate = value;
             Application.targetFrameRate = _targetTickRate;
-            Console.Write("Server TRate= " + _targetTickRate);
+            Console.Write("Server TRate= " + Application.targetFrameRate);
         }
 
     }

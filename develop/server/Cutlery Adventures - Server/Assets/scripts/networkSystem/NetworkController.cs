@@ -1,9 +1,10 @@
-﻿using Packet;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using System.Net;
 using System.Net.Sockets;
-
+using System;
+using Cutlery.Com;
+using System.Threading.Tasks;
 
 public class NetworkController : MonoBehaviour
 {
@@ -17,7 +18,7 @@ public class NetworkController : MonoBehaviour
     private enum ServerState { AcceptingConnections, ServerFull }
 
     //connection
-    private List<Player> _connectedPlayers; // list of players for the next match
+    private List<Player> _connectedPlayers;     // array of players for the next match
     private TcpListener _tcpListener;       // listener for tcp Connection
     private IPAddress _ipAddress;           // IP adress
 
@@ -41,9 +42,80 @@ public class NetworkController : MonoBehaviour
         _remoteEndPoint = new IPEndPoint(IPAddress.Any, UdpPort);
         _udpListener = new UdpClient(_remoteEndPoint);
 
+        // start Connected Player array
+        _connectedPlayers = new List<Player>();
+
+
         Console.Write("Staring Server...", Color.green);
+
+        //server Loop
+        Task.Run(() => ServerLoop());
+    }
+    // private server Functions
+    private void ServerLoop()
+    {
+        // Console print
+        Console.Write("-> Server Loop Started!", Color.gray);
+        Console.Write("Waiting Requestes");
+
+        while (true)
+        {
+            // listen for new players if is pending connection
+            if (_tcpListener.Pending())
+            {
+                Console.Write("New Contact waiting...", Color.white);
+                // start accepting tcpClient async
+                // call AsyncAcceptClient method
+                _tcpListener.BeginAcceptTcpClient(new AsyncCallback(AsyncAcceptClient),
+                    _tcpListener);
+            }
+
+        }
+    }
+
+    // AsyncAcceptClient
+    // Func for async tcp client first contact
+    private void AsyncAcceptClient(IAsyncResult iasync)
+    {
+        //max match size is 2 players, for now we are accepting connections if
+        // there is less then 2 players connected
+        if (_connectedPlayers.Count < 2)
+        {
+            // to the main listener not stop listen, use the async listener to
+            // terminate the lookup and retrieve the client
+            TcpListener listener = (TcpListener)iasync.AsyncState;
+            // determinate the tcpClient from the connection
+            TcpClient client = listener.EndAcceptTcpClient(iasync);
+
+            // confirm if the client is connected
+            if (client.Connected)
+            {
+                //print the new state on console
+                Console.Write("New connection onGoing!", Color.green);
+
+                // register the connection data on server
+                // Filling new player entrance
+                Player player = new Player();
+                player.Id = Guid.NewGuid();     // setting the new Player an Id
+                player.TcpClient = client;      // saving the TcpClient
+                player.GameState = GameState.Connecting;    // set player to connecting state
+
+                _connectedPlayers.Add(player);  // add player to list
+
+                //setting package to send to the client
+                Packet packet = new Packet();
+
+
+                // Server console write
+                Console.Write("Registing player, waiting remain data", Color.yellow);
+            }
+        }
     }
 }
+
+
+// doing , line 101 setting up packet for request complementary information
+// from the player
 
 /*  TODO
  *  - (maybe) wait line to play

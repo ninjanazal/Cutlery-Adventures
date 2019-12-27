@@ -1,0 +1,13 @@
+D:\Transferencias\Cutlery.Com\bin\Debug\Cutlery.Com.dll
+D:\Transferencias\Cutlery.Com\bin\Debug\Cutlery.Com.pdb
+D:\Transferencias\Cutlery.Com\obj\Debug\Cutlery.Com.csprojAssemblyReference.cache
+D:\Transferencias\Cutlery.Com\obj\Debug\Cutlery.Com.dll
+D:\Transferencias\Cutlery.Com\obj\Debug\Cutlery.Com.pdb
+D:\Documentos\Github\Cutlery-Adventures\develop\server\Cutlery Dlls\Cutlery.Com\bin\Debug\Cutlery.Com.dll
+D:\Documentos\Github\Cutlery-Adventures\develop\server\Cutlery Dlls\Cutlery.Com\bin\Debug\Cutlery.Com.pdb
+D:\Documentos\Github\Cutlery-Adventures\develop\server\Cutlery Dlls\Cutlery.Com\obj\Debug\Cutlery.Com.dll
+D:\Documentos\Github\Cutlery-Adventures\develop\server\Cutlery Dlls\Cutlery.Com\obj\Debug\Cutlery.Com.pdb
+D:\Documentos\Github\Cutlery-Adventures\develop\server\Cutlery Dlls\Cutlery.Com\bin\Debug\Newtonsoft.Json.dll
+D:\Documentos\Github\Cutlery-Adventures\develop\server\Cutlery Dlls\Cutlery.Com\bin\Debug\Newtonsoft.Json.xml
+D:\Documentos\Github\Cutlery-Adventures\develop\server\Cutlery Dlls\Cutlery.Com\obj\Debug\Cutlery.Com.csprojAssemblyReference.cache
+D:\Documentos\Github\Cutlery-Adventures\develop\server\Cutlery Dlls\Cutlery.Com\obj\Debug\Cutlery.Com.csproj.CopyComplete

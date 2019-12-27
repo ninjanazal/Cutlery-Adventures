@@ -86,7 +86,6 @@ public class Console : MonoBehaviour
 
         // to use color on a line need to add <color="hexCode">msg</color>
         _consoleLines.Enqueue($"<color=#{_hexColor}>{msg}</color>\n");
-
         UpdateConsole();
     }
 
