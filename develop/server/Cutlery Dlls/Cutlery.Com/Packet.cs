@@ -8,7 +8,7 @@ namespace Cutlery.Com
 {
     public class Packet
     {
-        public PacketType PacketType;       // type of packet
+        public PacketType PacketType { get; set; }       // type of packet
         public string Desc { get; set; }   // packet description
         // stamp for package sent
         // read only var
@@ -22,12 +22,15 @@ namespace Cutlery.Com
         public string PlayerName { get; set; }      // player Name
         public GameState PlayerState { get; set; }  // player state
         public Position PlayerPosition { get; set; }    // position of the player
+        public int PlayerScore { get; set; }        //player score
+
         #endregion
 
         #region Funcs
         //packet internal funcs
         // set send stamp
         public void SetSendStamp() { GetSendStamp = DateTime.Now.Ticks; }
+
         #endregion
     }
 

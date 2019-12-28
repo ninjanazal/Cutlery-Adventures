@@ -82,8 +82,21 @@ namespace Cutlery.Com
             //convert the string to a packet through json deserialization
             return (Packet)JsonConvert.DeserializeObject(jsonPacket, _jsonSettings);
         }
+
         // regist score point
-        public void AddPlayerScorePoint() => PlayerScore++;
+        public void AddPlayerScorePoint()
+        {
+            // add point to player score
+            PlayerScore++;
+
+        }
+
+        //check if player sent data to server
+        public bool DataAvailabe() { return TcpClient.GetStream().DataAvailable; }
+
+        // Close connection with the player
+        public void CloseConnection() { TcpClient.Close(); }
+
 
         // private funcs
         // set the player endPoint from TcpClient provided

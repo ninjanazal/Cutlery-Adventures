@@ -70,8 +70,9 @@ public class Console : MonoBehaviour
     /// <param name="msg"></param> Message to write
     public static void Write(string msg)
     {
-        string _strToWrited = msg + "\n";
-        _consoleLines.Enqueue(_strToWrited);
+        // line to add to console
+        _consoleLines.Enqueue($"{DateTime.Now.Ticks.ToString()}: {msg}\n");
+        // update console only if new line was added
         UpdateConsole();
     }
 
@@ -85,7 +86,8 @@ public class Console : MonoBehaviour
         string _hexColor = ColorUtility.ToHtmlStringRGB(color);
 
         // to use color on a line need to add <color="hexCode">msg</color>
-        _consoleLines.Enqueue($"<color=#{_hexColor}>{msg}</color>\n");
+        _consoleLines.Enqueue($"<color=#{_hexColor}>{DateTime.Now.Ticks.ToString()}" +
+            $": {msg}</color>\n");
         UpdateConsole();
     }
 
