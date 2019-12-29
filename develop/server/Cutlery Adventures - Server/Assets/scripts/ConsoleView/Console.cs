@@ -54,7 +54,8 @@ public class Console : MonoBehaviour
         // Console Debug Writing
         // write console specs 
         // write max visible lines
-        Write("-Console Size: " + _consoleCanvas.GetComponent<RectTransform>().rect.height +
+        Write("-Console Size: " + _consoleCanvas.GetComponent<RectTransform>().rect.width
+            + "*" + _consoleCanvas.GetComponent<RectTransform>().rect.height +
             " -Font size: " + _consoleText.fontSize + " -Line Height: " + _consoleText.font.lineHeight);
         Write("-visible Lines: " + _maxVisibleLines, Color.gray);
     }
@@ -70,8 +71,9 @@ public class Console : MonoBehaviour
     /// <param name="msg"></param> Message to write
     public static void Write(string msg)
     {
-        string _strToWrited = msg + "\n";
-        _consoleLines.Enqueue(_strToWrited);
+        // line to add to console
+        _consoleLines.Enqueue($"{DateTime.Now.Ticks.ToString()}: {msg}\n");
+        // update console only if new line was added
         UpdateConsole();
     }
 
@@ -85,8 +87,8 @@ public class Console : MonoBehaviour
         string _hexColor = ColorUtility.ToHtmlStringRGB(color);
 
         // to use color on a line need to add <color="hexCode">msg</color>
-        _consoleLines.Enqueue($"<color=#{_hexColor}>{msg}</color>\n");
-
+        _consoleLines.Enqueue($"<color=#{_hexColor}>{DateTime.Now.Ticks.ToString()}" +
+            $": {msg}</color>\n");
         UpdateConsole();
     }
 
