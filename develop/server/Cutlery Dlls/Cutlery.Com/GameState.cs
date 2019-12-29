@@ -4,7 +4,7 @@
     public enum GameState
     {
         Disconnected, Connecting, Connected, Sync,  // Setting the player to the server
-        WaitingStart, CountDown,                     // Setting payler on all others
+        WaitPlayer, WaitingStart, CountDown,        // Setting payler on all others
         GameStarted, GameEnded                      // match started
     }
 }

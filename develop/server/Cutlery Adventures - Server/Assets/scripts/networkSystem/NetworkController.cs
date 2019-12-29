@@ -17,7 +17,7 @@ public class NetworkController : MonoBehaviour
     //server internal vars
     // server states
     private enum ServerState { AcceptingConnections, ServerFull }
-
+    private ServerState _serverState;
     // async callback execution
     // since unity only allow methods be called from the main thread
     // async will queue orders to do, and in the main thread they will be executed
