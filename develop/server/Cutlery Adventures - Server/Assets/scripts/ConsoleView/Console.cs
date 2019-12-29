@@ -54,7 +54,8 @@ public class Console : MonoBehaviour
         // Console Debug Writing
         // write console specs 
         // write max visible lines
-        Write("-Console Size: " + _consoleCanvas.GetComponent<RectTransform>().rect.height +
+        Write("-Console Size: " + _consoleCanvas.GetComponent<RectTransform>().rect.width
+            + "*" + _consoleCanvas.GetComponent<RectTransform>().rect.height +
             " -Font size: " + _consoleText.fontSize + " -Line Height: " + _consoleText.font.lineHeight);
         Write("-visible Lines: " + _maxVisibleLines, Color.gray);
     }
