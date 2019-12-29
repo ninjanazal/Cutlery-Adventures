@@ -35,30 +35,35 @@ public class NetworkController : MonoBehaviour
     // Start Server Function
     public void StartServer()
     {
-        // setting the ip as IPAddress
-        _ipAddress = IPAddress.Parse(serverIp);
+        // try to start the server
+        try
+        {
+            // setting the ip as IPAddress
+            _ipAddress = IPAddress.Parse(serverIp);
 
 
-        // defining tcpListener
-        _tcpListener = new TcpListener(_ipAddress, TcpPort);
-        _tcpListener.Start();   // start tcpListener
+            // defining tcpListener
+            _tcpListener = new TcpListener(_ipAddress, TcpPort);
+            _tcpListener.Start();   // start tcpListener
 
-        // defining udpListener
-        // defining from where can server get data
-        _remoteEndPoint = new IPEndPoint(IPAddress.Any, UdpPort);
-        _udpListener = new UdpClient(_remoteEndPoint);
+            // defining udpListener
+            // defining from where can server get data
+            _remoteEndPoint = new IPEndPoint(IPAddress.Any, UdpPort);
+            _udpListener = new UdpClient(_remoteEndPoint);
 
-        // start Connected Player array
-        _connectedPlayers = new List<Player>();
+            // start Connected Player array
+            _connectedPlayers = new List<Player>();
 
 
-        Console.Write("Staring Server...", Color.green);
+            Console.Write("Staring Server...", Color.green);
 
-        //server Loop 
-        //async method, not using unity update cycle
+            //server Loop 
+            //async method, not using unity update cycle
 
-        Console.Write("GOING FULL ASYNC SERVER", Color.magenta);
-        ServerLoopAsync();
+            Console.Write("GOING FULL ASYNC SERVER", Color.magenta);
+            ServerLoopAsync();
+        }
+        catch (Exception ex) { Console.Write($"Error ocurred: {ex}", Color.red); }
 
     }
 

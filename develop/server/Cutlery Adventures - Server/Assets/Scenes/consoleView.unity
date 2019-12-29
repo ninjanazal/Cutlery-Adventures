@@ -529,5 +529,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serverIp: 127.0.0.1
-  TcpPort: 7701
-  UdpPort: 7702
+  TcpPort: 7777
+  UdpPort: 7778
