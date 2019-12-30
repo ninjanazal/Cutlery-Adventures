@@ -7,6 +7,7 @@ using Cutlery.Com;
 using System;
 using UnityEngine.UI;
 using System.Threading.Tasks;
+using System.IO;
 
 public class ClientNetworkController : MonoBehaviour
 {
@@ -19,14 +20,11 @@ public class ClientNetworkController : MonoBehaviour
     private Player _player;
     private Player _opponentPlayer;
 
-    //reference to the network Task
-    private Task _asyncNetworkTask;
     // since unity doesnt allow unity functions been called from other threads
     private List<Action> _actions;
 
     // vars for connection 
     // tcpClient and UDPclient
-    private TcpClient _tcpClient;
     private UdpClient _udpClient;
 
     // IpAddress var
@@ -62,7 +60,7 @@ public class ClientNetworkController : MonoBehaviour
         //define the player to a disconnected State
         _player.GameState = GameState.Disconnected;
         // define the internal TcpClient
-        _tcpClient = new TcpClient();
+        _player.TcpClient = new TcpClient();
     }
 
     //update method
@@ -71,30 +69,26 @@ public class ClientNetworkController : MonoBehaviour
         // if the connection thread from the client queued actions to clear
         // do all the actions
         if (_actions.Count > 0)
-            StartCoroutine(DoQueuedActions());
+            DoQueuedActions();
     }
 
-    #region Coroutines
     //Coroutine
     // Coroutine for clear actions from the other thread
-    private IEnumerator DoQueuedActions()
+    private void DoQueuedActions()
     {
         // create a new list of actions to do
         // used to not blocking the main queue whyle crear the actions
         List<Action> actionsTODO;
         //lock the used _actions
-        lock (_actions)
-        {
-            // copy all the queued actions
-            actionsTODO = new List<Action>(_actions);
-            // clear the queued actions
-            _actions.Clear();
-        }
+
+        // copy all the queued actions
+        actionsTODO = new List<Action>(_actions);
+        // clear the queued actions
+        _actions.Clear();
+
         // execute all actions
-        actionsTODO.ForEach(action => action());
-        yield return null;
+        foreach (Action action in actionsTODO) { action(); Debug.Log("Cleared task"); }
     }
-    #endregion
 
     // method called when the player wants to connect to the server
     // when the connect button is pressed
@@ -109,82 +103,99 @@ public class ClientNetworkController : MonoBehaviour
         _playerName = playerName;
         // call the func begingConnect to start async connection
         // try to start connection
-        try
-        {
-            _tcpClient.BeginConnect(_IpAdress, _serverTcpPort, BeginConnectionToServer, _tcpClient);
-            // write to outputView that client started connecting
-            _outputText.text += "\n-> Begin Connect";
-        }
-        catch (Exception ex) { _outputText.text = ex.ToString(); }
+
+        _player.TcpClient.BeginConnect(_IpAdress, _serverTcpPort, BeginConnectionToServer,
+            _player.TcpClient);
+        // write to outputView that client started connecting
+        _outputText.text += "\n-> Begin Connect";
+
     }
     // async method for setting a connection
     private void BeginConnectionToServer(IAsyncResult async)
     {
-        //write to outputView
-        _actions.Add(() => _outputText.text += "\n-> Connecting..");
-
         // stores the tcp client
-        TcpClient tcpClient = (TcpClient)async.AsyncState;
+        TcpClient client = (TcpClient)async.AsyncState;
         // stop the pending async connection
-        tcpClient.EndConnect(async);
+        client.EndConnect(async);
 
         // check if the player is connected to the server
-        if (tcpClient.Connected)
+        if (client.Connected)
         {
+            // debug to file
+            Debug.Log("Connected");
             // write to outputView
-            _actions.Add(() => _outputText.text += "\n-> Client Connected, wait request...");
 
-            // extract the tcpClient from the async var
-            // store on the player tcpVar
-            _player.TcpClient = tcpClient;
+            _outputText.text += "\n-> Client Connected, wait request...";
+            _outputText.text += "\n-> Saved tcpclient";
+
+            // define reader of player
+            _player.PlayerReader = new BinaryReader(client.GetStream());
+            // define write of the player
+            _player.PlayerWriter = new BinaryWriter(client.GetStream());
+
             // change the player state to connectiong
             _player.GameState = GameState.Connecting;
+            _outputText.text += "\n-> Change player state";
+
             // iniciate the packet list
             _player.PlayerPackets = new List<Packet>();
+            _outputText.text += "\n-> Start packet list";
 
-            // call that handles the network side
-            ClientNetworkAsync();
+            // print that the tcp is connected
+            _outputText.text += "\n ->PlayerConnected: " + _player.TcpClient.Connected.ToString();
+
+            Debug.Log("Got connection data");
+            // call client async loop started
+            // add client loop start to actions queue
+            ClientLoopAsync();
+
         }
         else
-        { _actions.Add(() => _outputText.text = "-> Connection refused!"); }
+        { _outputText.text = "-> Connection refused!"; }
+    }
+
+    private async void ClientLoopAsync()
+    {
+        // print that clientLoop will start
+        _outputText.text += "\n Client async loop starting.";
+
+        // this func will run on a new thread
+        await Task.Run(ClientNetworkAsync);
     }
 
     // async client connection handler
-    private async void ClientNetworkAsync()
+    private void ClientNetworkAsync()
     {
-        // run on a new therad the connection state
-        await Task.Run(() =>
-        {
-            // output to text that the async client has started
-            _actions.Add(() => _outputText.text += "\n -> AsyncNetwok started...");
+        // debug that the async method has been called
+        _outputText.text += "\n-> Async method called";
 
-            // this loop will run whyle the client is connected
-            while (_player.TcpClient.Connected)
+        // output to text that the async client has started
+        _outputText.text += "\n -> AsyncNetwok started...";
+
+        // this loop will run whyle the client is connected
+        while (_player.TcpClient.Connected)
+        {
+            // for each connected state
+            switch (_player.GameState)
             {
-                // for each connected state
-                switch (_player.GameState)
-                {
-                    case GameState.Connecting:
-                        break;
-                    case GameState.Connected:
-                        break;
-                    case GameState.Sync:
-                        break;
-                    case GameState.WaitPlayer:
-                        break;
-                    case GameState.WaitingStart:
-                        break;
-                    case GameState.CountDown:
-                        break;
-                    case GameState.GameStarted:
-                        break;
-                    case GameState.GameEnded:
-                        break;
-                    default:
-                        break;
-                }
+                case GameState.Connecting:
+                    break;
+                case GameState.Connected:
+                    break;
+                case GameState.Sync:
+                    break;
+                case GameState.WaitPlayer:
+                    break;
+                case GameState.WaitingStart:
+                    break;
+                case GameState.CountDown:
+                    break;
+                case GameState.GameStarted:
+                    break;
+                case GameState.GameEnded:
+                    break;
             }
-        });
+        }
     }
 
 }

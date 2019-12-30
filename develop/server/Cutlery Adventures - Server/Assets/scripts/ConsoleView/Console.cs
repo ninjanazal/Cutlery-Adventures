@@ -26,11 +26,6 @@ public class Console : MonoBehaviour
         UpdateConsole();
     }
 
-    private void Update()
-    {
-       
-    }
-
     #region private
     //private functions
     private static void UpdateConsole()
@@ -41,13 +36,8 @@ public class Console : MonoBehaviour
         Canvas.ForceUpdateCanvases();
 
         // if the numbers of lines is bigger then the lines that can be displayed
-        // dequeue the oldest entry
-
-        // debug console lines
-        //Debug.Log(_consoleLines.Count);
-        //Debug.Log(_consoleText.cachedTextGenerator.lineCount);
-
-        while (_consoleText.cachedTextGenerator.lineCount > _maxVisibleLines)
+        // dequeue the oldest entry        
+        while (_consoleLines.Count > _maxVisibleLines)
         {
             // dequeue the oldest line
             _consoleLines.Dequeue();

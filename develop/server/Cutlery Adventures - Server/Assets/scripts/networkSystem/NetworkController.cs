@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System;
 using Cutlery.Com;
 using System.Threading.Tasks;
+using System.IO;
 
 public class NetworkController : MonoBehaviour
 {
@@ -42,9 +43,11 @@ public class NetworkController : MonoBehaviour
             _ipAddress = IPAddress.Parse(serverIp);
 
             // debug message for server starting
+            Debug.Log("Staring Server...");
             Console.Write("Staring Server...", Color.green);
 
             // more information about the server
+            Debug.Log($"Server Ip: {_ipAddress}, port: {TcpPort}");
             Console.Write($"Server Ip: {_ipAddress}, port: {TcpPort}");
 
             // defining tcpListener
@@ -61,11 +64,11 @@ public class NetworkController : MonoBehaviour
 
             //server Loop 
             //async method, not using unity update cycle
-
+            Debug.Log("GOING FULL ASYNC SERVER");
             Console.Write("GOING FULL ASYNC SERVER", Color.magenta);
             ServerLoopAsync();
         }
-        catch (Exception ex) { Console.Write($"Error ocurred: {ex}", Color.red); }
+        catch (Exception ex) { Console.Write($"Error ocurred: {ex}", Color.red); Debug.Log(ex); }
 
     }
 
@@ -83,6 +86,7 @@ public class NetworkController : MonoBehaviour
     {
         // Console print
         // displaing server start 
+        Debug.Log("-> Server Loop Started!");
         Console.Write("-> Server Loop Started!", Color.gray);
 
         //start the list of actions to do
@@ -90,7 +94,9 @@ public class NetworkController : MonoBehaviour
 
         // async await, server loop
         // this func will run on a new thread
-        await Task.Run(InternalLoopAsync);
+        Debug.Log("async start");
+        try { await Task.Run(InternalLoopAsync); }
+        catch (Exception ex) { Debug.Log(ex); }
     }
 
     //intern server Loop
@@ -98,75 +104,75 @@ public class NetworkController : MonoBehaviour
     // queue actions from the other threads to run on main
     private void InternalLoopAsync()
     {
-        // for catching exeptions
-        try
+        // queue call on main thread
+        _actions.Add(() => Debug.Log("Waiting Requestes"));
+        _actions.Add(() => Console.Write("Waiting Requestes"));
+
+        while (true)
         {
-            // queue call on main thread
-            _actions.Add(() => Console.Write("Waiting Requestes"));
-
-            while (true)
+            // listen for new players if is pending connection
+            if (_tcpListener.Pending())
             {
-                // listen for new players if is pending connection
-                if (_tcpListener.Pending())
-                {
-                    // queue executions from this async task to run on main thread
-                    _actions.Add(()
-                        => Console.Write("New Contact waiting...", Color.white));
+                // queue executions from this async task to run on main thread
+                _actions.Add(()
+                    => Debug.Log("New Contact waiting..."));
+                _actions.Add(()
+                    => Console.Write("New Contact waiting...", Color.white));
 
-                    // start accepting tcpClient async
-                    // call AsyncAcceptClient method
-                    _tcpListener.BeginAcceptTcpClient(new AsyncCallback(AsyncAcceptClient),
-                        _tcpListener);
-                }
-
-                foreach (Player _conPlayer in _connectedPlayers)
+                // start accepting tcpClient async
+                // call AsyncAcceptClient method
+                _tcpListener.BeginAcceptTcpClient(AsyncAcceptClient, _tcpListener);
+            }
+            foreach (Player _conPlayer in _connectedPlayers)
+            {
+                switch (_conPlayer.GameState)
                 {
-                    switch (_conPlayer.GameState)
-                    {
-                        // when player is disconnected
-                        case GameState.Disconnected:
-                            Disconnected(_conPlayer);
-                            break;
-                        // when player is connecting to the server
-                        case GameState.Connecting:
-                            Connecting(_conPlayer);
-                            break;
-                        //when player is connected
-                        case GameState.Connected:
-                            Connected(_conPlayer);
-                            break;
-                        //when player is syncing
-                        case GameState.Sync:
-                            Syncing(_conPlayer);
-                            break;
-                        //when player is waiting for start
-                        case GameState.WaitingStart:
-                            WaitForStart(_conPlayer);
-                            break;
-                        // when player is on countDown
-                        case GameState.CountDown:
-                            CountDown(_conPlayer);
-                            break;
-                        // when player is in game
-                        case GameState.GameStarted:
-                            GameStarted(_conPlayer);
-                            break;
-                        //when player finished the game
-                        case GameState.GameEnded:
-                            EndGame(_conPlayer);
-                            break;
-                    }
+                    // when player is disconnected
+                    case GameState.Disconnected:
+                        Disconnected(_conPlayer);
+                        break;
+                    // when player is connecting to the server
+                    case GameState.Connecting:
+                        Connecting(_conPlayer);
+                        break;
+                    //when player is connected
+                    case GameState.Connected:
+                        Connected(_conPlayer);
+                        break;
+                    //when player is syncing
+                    case GameState.Sync:
+                        Syncing(_conPlayer);
+                        break;
+                    //when player is waiting for start
+                    case GameState.WaitingStart:
+                        WaitForStart(_conPlayer);
+                        break;
+                    // when player is on countDown
+                    case GameState.CountDown:
+                        CountDown(_conPlayer);
+                        break;
+                    // when player is in game
+                    case GameState.GameStarted:
+                        GameStarted(_conPlayer);
+                        break;
+                    //when player finished the game
+                    case GameState.GameEnded:
+                        EndGame(_conPlayer);
+                        break;
                 }
             }
         }
-        // if server cant run the try portion, exception will tell the problem
-        catch (Exception ex) { _actions.Add(() => Console.Write($"Server error: {ex.Message}")); }
+
     }
 
     // AsyncAcceptClient
     // Func for async tcp client first contact
     private void AsyncAcceptClient(IAsyncResult iasync)
     {
+        //add to log
+        _actions.Add(() =>
+            Debug.Log("async accept ended!"));
+
         // to the main listener not stop listen, use the async listener to
         // terminate the lookup and retrieve the client
         TcpListener listener = (TcpListener)iasync.AsyncState;
@@ -176,10 +182,14 @@ public class NetworkController : MonoBehaviour
         //max match size is 2 players, for now we are accepting connections if
         // there is less then 2 players connected
         // confirm if the client is connected
+
         if (_connectedPlayers.Count < 2 && client.Connected)
         {
-            //print the new state on console
+            //print the new state on console  
             // add call to queue of actions
+            // add to log
+            _actions.Add(() =>
+            Debug.Log("New connection onGoing!"));
             _actions.Add(() =>
             Console.Write("New connection onGoing!", Color.green));
 
@@ -191,6 +201,10 @@ public class NetworkController : MonoBehaviour
             player.PlayerPackets = new List<Packet>();
             player.Id = Guid.NewGuid();     // setting the new Player an Id
             player.TcpClient = client;      // saving the TcpClient
+            //define binarywriter of player
+            player.PlayerWriter = new BinaryWriter(client.GetStream());
+            //define binaryReader of player
+            player.PlayerReader = new BinaryReader(client.GetStream());
             player.GameState = GameState.Connecting;    // set player to connecting state
 
             _connectedPlayers.Add(player);  // add player to list
@@ -216,7 +230,11 @@ public class NetworkController : MonoBehaviour
 
             // Server console write
             _actions.Add(() =>
-            Console.Write("Registing player, waiting remain data", Color.yellow));
+            Console.Write("Registing player", Color.yellow));
+            // printing waiting for remaining info
+            _actions.Add(() =>
+            Console.Write($"Waiting requested data from {player.Id}", Color.yellow));
+            Debug.Log(_connectedPlayers.Count);
         }
         // if server is full , all the new player will get a message from server
         // telling that
@@ -226,7 +244,8 @@ public class NetworkController : MonoBehaviour
             Player refusedPlayer = new Player();
             // extracts the tcpLink
             refusedPlayer.TcpClient = client;
-
+            // define binarywrite of the refused player
+            refusedPlayer.PlayerWriter = new BinaryWriter(client.GetStream());
             //create a packet to inform the player why the connection will drop
             Packet packet = new Packet();
             // set the type of the packet and the description
@@ -250,10 +269,6 @@ public class NetworkController : MonoBehaviour
     //handle if the player is Connecting
     private void Connecting(Player _player)
     {
-        // printing waiting for remaining info
-        _actions.Add(() =>
-        Console.Write($"Waiting requested data from {_player.Id}", Color.yellow));
-
         // check if the player has new data Available
         if (_player.DataAvailabe())
         {
@@ -408,18 +423,17 @@ public class NetworkController : MonoBehaviour
         // this is used to block changes during this copy
         // creates a list to store the queued actions
         List<Action> actionsToDo;
-        // lock used var _actions
         lock (_actions)
         {
             // copy all the queued actions
             actionsToDo = new List<Action>(_actions);
-            // clear the line
-            _actions.Clear();
         }
+        // clear the line
+        _actions.Clear();
+
         // for each action, executes
         foreach (Action item in actionsToDo) { item(); }
         yield return null;
-
     }
     #endregion
 }

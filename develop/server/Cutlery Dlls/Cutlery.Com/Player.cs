@@ -26,21 +26,13 @@ namespace Cutlery.Com
         public List<Packet> PlayerPackets { get; set; } //packets sented/recieved 
 
         //TCP connection
-        public TcpClient TcpClient
-        {
-            get => TcpClient;
-            set
-            {
-                TcpClient = value;
-                SetPlayerEndPoint();    // define endPoint
-                SetReaderWriter();    // define reader and writer from tcp
-            }
-        }               //client Tcp
+        //client Tcp
+        public TcpClient TcpClient { get; set; }
 
         // binary reader (read only var)
-        public BinaryWriter PlayerWriter { get; private set; }
+        public BinaryWriter PlayerWriter { get; set; }
         // binary writer (read only var)
-        public BinaryReader PlayerReader { get; private set; }
+        public BinaryReader PlayerReader { get; set; }
 
         // UDP connection
         public EndPoint ClientEndPoint { get; set; }    // client EndPoint
@@ -101,14 +93,6 @@ namespace Cutlery.Com
         // private funcs
         // set the player endPoint from TcpClient provided
         private void SetPlayerEndPoint() => ClientEndPoint = TcpClient.Client.RemoteEndPoint;
-        // set the binary reader and writer for the player 
-        private void SetReaderWriter()
-        {
-            // reader
-            PlayerReader = new BinaryReader(TcpClient.GetStream());
-            //writer
-            PlayerWriter = new BinaryWriter(TcpClient.GetStream());
 
-        }
     }
 }

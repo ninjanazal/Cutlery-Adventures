@@ -49,7 +49,7 @@ MonoBehaviour:
   - {fileID: 20}
   - {fileID: 13}
   m_Selected: 0
-  m_LastSelected: 0
+  m_LastSelected: 1
 --- !u!114 &3
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -180,7 +180,7 @@ MonoBehaviour:
   m_MinSize: {x: 638, y: 344}
   m_MaxSize: {x: 18008, y: 10022}
   vertical: 0
-  controlID: 33
+  controlID: 99
 --- !u!114 &8
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -205,7 +205,7 @@ MonoBehaviour:
   m_MinSize: {x: 913, y: 344}
   m_MaxSize: {x: 22008, y: 10022}
   vertical: 0
-  controlID: 32
+  controlID: 160
 --- !u!114 &9
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -327,7 +327,7 @@ MonoBehaviour:
   m_ViewDataDictionary: {fileID: 0}
   m_LockTracker:
     m_IsLocked: 0
-  m_LastSelectedObjectID: -8106
+  m_LastSelectedObjectID: 12412
 --- !u!114 &14
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -447,7 +447,8 @@ MonoBehaviour:
     m_ShowAllHits: 0
     m_SkipHidden: 0
     m_SearchArea: 1
-    m_Folders: []
+    m_Folders:
+    - Assets/_scripts/NetworkSystem
   m_ViewMode: 0
   m_StartGridSize: 16
   m_LastFolders: []
@@ -611,7 +612,7 @@ MonoBehaviour:
   m_SceneHierarchy:
     m_TreeViewState:
       scrollPos: {x: 0, y: 0}
-      m_SelectedIDs: 
+      m_SelectedIDs: 0e280000
       m_LastClickedID: 0
       m_ExpandedIDs: 76fbffff
       m_RenameOverlay:
@@ -796,7 +797,7 @@ MonoBehaviour:
       y: 17
       width: 918
       height: 602
-    m_Scale: {x: 1.055184, y: 1.055184}
+    m_Scale: {x: 1, y: 1}
     m_Translation: {x: 459, y: 301}
     m_MarginLeft: 0
     m_MarginRight: 0
@@ -804,10 +805,10 @@ MonoBehaviour:
     m_MarginBottom: 0
     m_LastShownAreaInsideMargins:
       serializedVersion: 2
-      x: -434.9952
-      y: -285.2583
-      width: 869.9904
-      height: 570.5166
+      x: -459
+      y: -301
+      width: 918
+      height: 602
     m_MinimalGUI: 1
   m_defaultScale: 1
   m_TargetTexture: {fileID: 0}
