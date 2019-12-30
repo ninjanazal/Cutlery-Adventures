@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 public class Console : MonoBehaviour
 {
-    private static Queue<String> _consoleLines;
+    public static Queue<String> _consoleLines;
     private Canvas _consoleCanvas;
     private static Text _consoleText;
 
@@ -20,10 +20,15 @@ public class Console : MonoBehaviour
         _consoleLines = new Queue<string>();
 
         // clean console on start
-        _consoleLines.Enqueue("");
+        _consoleLines.Clear();
 
         CalculateConsoleBounds();
         UpdateConsole();
+    }
+
+    private void Update()
+    {
+       
     }
 
     #region private
@@ -38,9 +43,17 @@ public class Console : MonoBehaviour
         // if the numbers of lines is bigger then the lines that can be displayed
         // dequeue the oldest entry
 
+        // debug console lines
+        //Debug.Log(_consoleLines.Count);
+        //Debug.Log(_consoleText.cachedTextGenerator.lineCount);
+
         while (_consoleText.cachedTextGenerator.lineCount > _maxVisibleLines)
         {
+            // dequeue the oldest line
             _consoleLines.Dequeue();
+            // update text on Console
+            _consoleText.text = string.Concat(_consoleLines.ToArray());
+            // force canvas update for results on the current frame
             Canvas.ForceUpdateCanvases();
         }
     }

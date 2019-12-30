@@ -41,6 +41,11 @@ public class NetworkController : MonoBehaviour
             // setting the ip as IPAddress
             _ipAddress = IPAddress.Parse(serverIp);
 
+            // debug message for server starting
+            Console.Write("Staring Server...", Color.green);
+
+            // more information about the server
+            Console.Write($"Server Ip: {_ipAddress}, port: {TcpPort}");
 
             // defining tcpListener
             _tcpListener = new TcpListener(_ipAddress, TcpPort);
@@ -53,9 +58,6 @@ public class NetworkController : MonoBehaviour
 
             // start Connected Player array
             _connectedPlayers = new List<Player>();
-
-
-            Console.Write("Staring Server...", Color.green);
 
             //server Loop 
             //async method, not using unity update cycle

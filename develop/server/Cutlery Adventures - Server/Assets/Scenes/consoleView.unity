@@ -498,7 +498,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2121644616}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bb178b43399c1ef4c9d98f24c939a152, type: 3}
   m_Name: 
@@ -529,5 +529,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serverIp: 127.0.0.1
-  TcpPort: 7777
-  UdpPort: 7778
+  TcpPort: 7701
+  UdpPort: 7702
