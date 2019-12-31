@@ -17,12 +17,8 @@ public class NetworkController : MonoBehaviour
 
     //server internal vars
     // server states
-    private enum ServerState { AcceptingConnections, ServerFull }
+    private enum ServerState { ServerWaitingPlayers, ServerStartedMatch }
     private ServerState _serverState;
-    // async callback execution
-    // since unity only allow methods be called from the main thread
-    // async will queue orders to do, and in the main thread they will be executed
-    private List<Action> _actions;
 
     //connection
     private List<Player> _connectedPlayers;     // array of players for the next match
@@ -32,6 +28,8 @@ public class NetworkController : MonoBehaviour
     private UdpClient _udpListener;         // listener for UDP Connection
     private IPEndPoint _remoteEndPoint;     // valid end points
 
+    // async tasks handler
+    private Queue<Action> _asyncActions;
 
     // Start Server Function
     public void StartServer()
@@ -62,11 +60,15 @@ public class NetworkController : MonoBehaviour
             // start Connected Player array
             _connectedPlayers = new List<Player>();
 
+            // start list of asyncActions
+            _asyncActions = new Queue<Action>();
+
             //server Loop 
             //async method, not using unity update cycle
-            Debug.Log("GOING FULL ASYNC SERVER");
-            Console.Write("GOING FULL ASYNC SERVER", Color.magenta);
-            ServerLoopAsync();
+            Debug.Log("Server started");
+            Console.Write("-> Server Started!", Color.magenta);
+            // set the server state to ServerWaitingPlayers
+            _serverState = ServerState.ServerWaitingPlayers;
         }
         catch (Exception ex) { Console.Write($"Error ocurred: {ex}", Color.red); Debug.Log(ex); }
 
@@ -75,196 +77,196 @@ public class NetworkController : MonoBehaviour
     //server unity Update
     private void Update()
     {
-        // if there is actions queued
-        if (_actions.Count > 0)
-            StartCoroutine(DoQueuedActions());
-    }
+        // after all logic, resolve the actions queue
+        AsyncActionsClear();
 
-    // private server Functions
-    // server loop async
-    private async void ServerLoopAsync()
-    {
-        // Console print
-        // displaing server start 
-        Debug.Log("-> Server Loop Started!");
-        Console.Write("-> Server Loop Started!", Color.gray);
-
-        //start the list of actions to do
-        _actions = new List<Action>();
-
-        // async await, server loop
-        // this func will run on a new thread
-        Debug.Log("async start");
-        try { await Task.Run(InternalLoopAsync); }
-        catch (Exception ex) { Debug.Log(ex); }
-    }
-
-    //intern server Loop
-    // in async func on unity , u cant call methods from other threads, soo need to
-    // queue actions from the other threads to run on main
-    private void InternalLoopAsync()
-    {
-        // queue call on main thread
-        _actions.Add(() => Debug.Log("Waiting Requestes"));
-        _actions.Add(() => Console.Write("Waiting Requestes"));
-
-        while (true)
+        // internal loop for acepting players
+        // listen for new players , looking for pending connections
+        if (_tcpListener.Pending())
         {
-            // listen for new players if is pending connection
-            if (_tcpListener.Pending())
-            {
-                // queue executions from this async task to run on main thread
-                _actions.Add(()
-                    => Debug.Log("New Contact waiting..."));
-                _actions.Add(()
-                    => Console.Write("New Contact waiting...", Color.white));
+            // Debug to log
+            Debug.Log("New pending connection");
+            // debug to console
+            Console.Write("New Pending Connection found", Color.green);
 
-                // start accepting tcpClient async
-                // call AsyncAcceptClient method
-                _tcpListener.BeginAcceptTcpClient(AsyncAcceptClient, _tcpListener);
-            }
-            foreach (Player _conPlayer in _connectedPlayers)
+            //start a async accepting the client
+            _tcpListener.BeginAcceptTcpClient(new AsyncCallback(AcceptingConnectionCallback),
+                _tcpListener);
+
+            // debug to log
+            Debug.Log("BeginAcceptStarted");
+        }
+
+        // if server is waiting players
+        if (_serverState == ServerState.ServerWaitingPlayers)
+        {
+            foreach (Player conPlayer in _connectedPlayers)
             {
-                switch (_conPlayer.GameState)
+                switch (conPlayer.GameState)
                 {
-                    // when player is disconnected
                     case GameState.Disconnected:
-                        Disconnected(_conPlayer);
+                        // handle if a player is in disconneted state
+                        // fornow if this happens the game ends and the connections are droped
                         break;
-                    // when player is connecting to the server
                     case GameState.Connecting:
-                        Connecting(_conPlayer);
+                        // call handler for connecting state
+                        Connecting(conPlayer);
                         break;
-                    //when player is connected
-                    case GameState.Connected:
-                        Connected(_conPlayer);
-                        break;
-                    //when player is syncing
                     case GameState.Sync:
-                        Syncing(_conPlayer);
+                        // sending the last layer info to the other player
                         break;
-                    //when player is waiting for start
+                    case GameState.WaitPlayer:
+                        // just waits for confirmation of data recieved from the client
+                        break;
                     case GameState.WaitingStart:
-                        WaitForStart(_conPlayer);
-                        break;
-                    // when player is on countDown
-                    case GameState.CountDown:
-                        CountDown(_conPlayer);
-                        break;
-                    // when player is in game
-                    case GameState.GameStarted:
-                        GameStarted(_conPlayer);
-                        break;
-                    //when player finished the game
-                    case GameState.GameEnded:
-                        EndGame(_conPlayer);
+                        // waiting server start the game
                         break;
                 }
             }
         }
-
     }
 
-    // AsyncAcceptClient
-    // Func for async tcp client first contact
-    private void AsyncAcceptClient(IAsyncResult iasync)
+    #region AsyncMethods and Resolvers
+    // async callback for accepting new players
+    private void AcceptingConnectionCallback(IAsyncResult asyncResult)
     {
-        //add to log
-        _actions.Add(() =>
-            Debug.Log("async accept ended!"));
+        // extract the listener from the result of the async beging accept
+        TcpListener listener = (TcpListener)asyncResult.AsyncState;
+        // end accepting tcpClient, extracting the tcpclient
+        TcpClient client = listener.EndAcceptTcpClient(asyncResult);
 
-        // to the main listener not stop listen, use the async listener to
-        // terminate the lookup and retrieve the client
-        TcpListener listener = (TcpListener)iasync.AsyncState;
-        // determinate the tcpClient from the connection
-        TcpClient client = listener.EndAcceptTcpClient(iasync);
-
-        //max match size is 2 players, for now we are accepting connections if
-        // there is less then 2 players connected
-        // confirm if the client is connected
-
-        if (_connectedPlayers.Count < 2 && client.Connected)
+        // if the client is connected
+        if (client.Connected)
         {
-            //print the new state on console  
-            // add call to queue of actions
-            // add to log
-            _actions.Add(() =>
-            Debug.Log("New connection onGoing!"));
-            _actions.Add(() =>
-            Console.Write("New connection onGoing!", Color.green));
+            // queue actions
+            _asyncActions.Enqueue(() =>
+            {
+                // debug to log
+                Debug.Log("New connecting accepted");
+                // write to server console
+                Console.Write("New Connecting accepted", Color.green);
+            });
 
-            // register the connection data on server
-            // Filling new player entrance
-            Player player = new Player();
-            // inicialize the list that stores all the packets recieved and sent
-            // to the player
-            player.PlayerPackets = new List<Packet>();
-            player.Id = Guid.NewGuid();     // setting the new Player an Id
-            player.TcpClient = client;      // saving the TcpClient
-            //define binarywriter of player
-            player.PlayerWriter = new BinaryWriter(client.GetStream());
-            //define binaryReader of player
-            player.PlayerReader = new BinaryReader(client.GetStream());
-            player.GameState = GameState.Connecting;    // set player to connecting state
+            // regist the connection data on server memory
+            Player acceptedPlayer = new Player();
+            // inicialize the packet list for the player
+            acceptedPlayer.PlayerPackets = new List<Packet>();
+            // set the player unique id
+            acceptedPlayer.Id = Guid.NewGuid();
+            // save the tcpClient of the player
+            acceptedPlayer.TcpClient = client;
+            // set the player binaryread and binarywriter
+            acceptedPlayer.PlayerReader = new BinaryReader(client.GetStream());
+            acceptedPlayer.PlayerWriter = new BinaryWriter(client.GetStream());
 
-            _connectedPlayers.Add(player);  // add player to list
+            // queue actions
+            _asyncActions.Enqueue(() =>
+            {
+                //debug to log
+                Debug.Log("All data from connection saved");
+                Console.Write("All data from connection saved", Color.green);
+            });
 
-            //setting package to send to the client
-            Packet packet = new Packet();
-            // define the packet type,
-            // this type is sent when the registration is in progress
-            // adicional info is needed
-            packet.PacketType = PacketType.RequestPlayerInfo;
+            // defining the packet to send
+            Packet responsePacket = new Packet();
 
-            // build packet with information give by the server
-            packet.PlayerGUID = player.Id;
-            packet.PlayerState = player.GameState;
+            // checking if the match has started
+            if (_serverState == ServerState.ServerStartedMatch)
+            {
+                //queue actions
+                _asyncActions.Enqueue(() =>
+                {
+                    // display in console that a player has been refused
+                    Debug.Log("Player refuse due to full server");
+                    Console.Write("Player refuse due to full server", Color.red);
+                });
 
-            // add the sented packet to the list
-            player.PlayerPackets.Add(packet);
-            // store connected player in list
-            _connectedPlayers.Add(player);
+                // the player wont be added to the connected players
+                // will recieve a packet telling that he wout be accepted
+                // set the packet type of connectionRefused
+                responsePacket.PacketType = PacketType.ConnectionRefused;
 
-            // send packet to the player with the information
-            player.SendPacket(packet);
+                // adding some description to the packet
+                responsePacket.Desc = "Server full and match has started," +
+                    " connection droped";
 
-            // Server console write
-            _actions.Add(() =>
-            Console.Write("Registing player", Color.yellow));
-            // printing waiting for remaining info
-            _actions.Add(() =>
-            Console.Write($"Waiting requested data from {player.Id}", Color.yellow));
-            Debug.Log(_connectedPlayers.Count);
+                // send the packet to the client
+                acceptedPlayer.SendPacket(responsePacket);
+                // close connection with this client
+                client.Close();
+            }
+            else
+            {
+                // queue actions
+                _asyncActions.Enqueue(() =>
+                {
+                    // debug that client has been accepted and registed
+                    Debug.Log($"Client accepted with the id: {acceptedPlayer.Id}");
+                    Console.Write($"Client accepted with the id: {acceptedPlayer.Id}", Color.green);
+                });
+
+                //setting the player state on server
+                acceptedPlayer.GameState = GameState.Connecting;
+
+                // debug to server console that the client has been accepted
+                _asyncActions.Enqueue(() => Console.Write("Client added to connected Players"));
+
+                // setting the package to send
+                responsePacket.PacketType = PacketType.RequestPlayerInfo;
+                // adding the player generated id
+                responsePacket.PlayerGUID = acceptedPlayer.Id;
+
+                // saving the packet to the packet list on player
+                acceptedPlayer.PlayerPackets.Add(responsePacket);
+
+                //queue actio to do
+                // add the accepted player to the connectedPlayers list
+                _asyncActions.Enqueue(() => { AddPlayer(acceptedPlayer); });
+
+                // sending the response packet
+                acceptedPlayer.SendPacket(responsePacket);
+
+                // enque actions
+                _asyncActions.Enqueue(() =>
+                {
+                    // debug to log
+                    Debug.Log("Response packet sented, waiting more data");
+                    Console.Write("Response packet sented, waiting more data");
+                });
+            }
+
         }
-        // if server is full , all the new player will get a message from server
-        // telling that
         else
         {
-            //creates a player for this connecntion
-            Player refusedPlayer = new Player();
-            // extracts the tcpLink
-            refusedPlayer.TcpClient = client;
-            // define binarywrite of the refused player
-            refusedPlayer.PlayerWriter = new BinaryWriter(client.GetStream());
-            //create a packet to inform the player why the connection will drop
-            Packet packet = new Packet();
-            // set the type of the packet and the description
-            packet.PacketType = PacketType.ConnectionRefused;
-            packet.Desc = "Server is full";
-            // send the packet to the player
-            refusedPlayer.SendPacket(packet);
-            // drop the connection
-            refusedPlayer.CloseConnection();
+            //enqueue action
+            _asyncActions.Enqueue(() =>
+            {
+                // if player is not connected
+                // debug that player was refused
+                Debug.Log("Connection refuse");
+                Console.Write("Connection refused", Color.blue);
+            });
         }
     }
 
-    // methods that handle the player states
-    #region playerState Handlers
-    // handle if the player is disconnected
-    private void Disconnected(Player _player)
+    // execute asyncMethods
+    private void AsyncActionsClear()
     {
-        //TODO
+        // if exists any queued action queued
+        Debug.Log("AsyncActions queued: " + _asyncActions.Count);
+        while (_asyncActions.Count > 0)
+        {
+            // execute the oldest action
+            _asyncActions.Dequeue()();
+        }
     }
+
+    // method that queue players to add
+    private void AddPlayer(Player connectedPlayer)
+    { _connectedPlayers.Add(connectedPlayer); }
+    #endregion
+
+    #region PlayerStateHandlers
 
     //handle if the player is Connecting
     private void Connecting(Player _player)
@@ -272,6 +274,10 @@ public class NetworkController : MonoBehaviour
         // check if the player has new data Available
         if (_player.DataAvailabe())
         {
+            // Debug that player has data available
+            Debug.Log($"{_player.Id} has data available");
+            Console.Write($"{_player.Id} has data available", Color.cyan);
+
             // read the new data
             Packet _recieved = _player.ReadPacket();
 
@@ -282,8 +288,12 @@ public class NetworkController : MonoBehaviour
             // is the requested info
             if (_recieved.PacketType == PacketType.PlayerInfo)
             {
+                // debug that server recieved packet
+                Console.Write("Server recieved packet with requested info");
+
                 // if soo, complete player information
                 _player.Name = _recieved.PlayerName;
+
                 // if the other player is ready to play
                 // change this player to sync with
                 // else set the player to wait other player
@@ -302,9 +312,9 @@ public class NetworkController : MonoBehaviour
 
                 // print the new information of the player
                 // and the state the player is at
-                _actions.Add(() =>
+
                 Console.Write($"{_player.Name} registed," +
-                $" PlayerState in serve{_player.GameState.ToString()}", Color.green));
+                $" PlayerState in serve{_player.GameState.ToString()}", Color.green);
 
                 // add packet to playerPackets
                 _player.PlayerPackets.Add(_confirmPacket);
@@ -314,129 +324,116 @@ public class NetworkController : MonoBehaviour
         }
     }
 
-    //handle if the player is connected
-    private void Connected(Player _player)
+    //handler for the player syncState
+    private void SyncNewPlayer(Player _player)
     {
-        // TODO
+
     }
 
-    // handle if the player is Syncing with other
-    private void Syncing(Player _player)
-    {
-        // setting up the packet for syncing this player with the other one
-        // printing that server start to notiffy the other player
-        _actions.Add(() => Console.Write($"Syncing {_player.Name} to the other player",
-            Color.yellow));
-
-        // preparing the packet to inform the connected player
-        Packet _syncPacket = new Packet();
-        // set the packet type as newPlayer
-        // sending the player Id and name
-        _syncPacket.PacketType = PacketType.NewPlayer;
-        _syncPacket.PlayerGUID = _player.Id;
-        _syncPacket.PlayerName = _player.Name;
-
-        // sending to player who is waiting for the new player
-        _connectedPlayers.ForEach(_p =>
-        {
-            // diferent from the actual player and waiting for the new player
-            if (_p.Id != _player.Id && _p.GameState == GameState.WaitPlayer)
-            {
-                // print that server is notifying the existing player
-                _actions.Add(() => Console.Write($"Notifying {_p.Name} " +
-                    $"that a new player has connected", Color.green));
-
-                // send to player the packet to notify the new player
-                // save the packet sent
-                _p.PlayerPackets.Add(_syncPacket);
-                // send the packet to the player waiting
-                _p.SendPacket(_syncPacket);
-
-                // since all the players are connected we can change the state of
-                // this to waiting game start
-                _p.GameState = GameState.WaitingStart;
-
-                // printing that the existing player has been notifyed and now is read
-                _actions.Add(() => Console.Write($"Player {_p.Name}, has been notifyed," +
-                    $"and now is read to player", Color.red));
-
-                // setting the packet to notify the new player the existing players
-                // creating the packet to send
-                Packet _notifyExisting = new Packet();
-                // add info from the existing connection
-                // set the packet to new player type
-                _notifyExisting.PacketType = PacketType.NewPlayer;
-                // adding the id and the name of the existing player
-                _notifyExisting.PlayerGUID = _p.Id;
-                _notifyExisting.PlayerName = _p.Name;
-
-                // add packet to packetList of the player
-                _player.PlayerPackets.Add(_notifyExisting);
-                // send the packet to the player
-                _player.SendPacket(_notifyExisting);
-
-                // priting that the new player was notifyed about the connected player
-                _actions.Add(() => Console.Write($"Player {_player.Name} know about" +
-                    $"{_p.Name}", Color.red));
-            }
-        });
-        // since the new player as known of the existing players and they know about the new
-        // one, we can change the state of this player to waitingStart
-        _player.GameState = GameState.WaitingStart;
-
-        //printing that the new player is ready to play
-        _actions.Add(() => Console.Write($"The player {_player.Name} is now ready to player",
-            Color.green));
-    }
-
-    //handle if the player is waiting for start
-    private void WaitForStart(Player _player)
-    {
-        //TODO
-    }
-
-    //handle if player is countingDown
-    private void CountDown(Player _player)
-    {
-        // TODO
-    }
-
-    //handle if the player is in the game
-    private void GameStarted(Player _player)
-    {
-        // TODO
-    }
-
-    // handle if the player is in endGame state
-    private void EndGame(Player _player)
-    {
-        //TODO
-    }
-    #endregion
-
-    #region Coroutines
-    //Coroutine
-    //coroutine for clear tasks from async 
-    private IEnumerator DoQueuedActions()
-    {
-        // locks the list of actions
-        // this is used to block changes during this copy
-        // creates a list to store the queued actions
-        List<Action> actionsToDo;
-        lock (_actions)
-        {
-            // copy all the queued actions
-            actionsToDo = new List<Action>(_actions);
-        }
-        // clear the line
-        _actions.Clear();
-
-        // for each action, executes
-        foreach (Action item in actionsToDo) { item(); }
-        yield return null;
-    }
     #endregion
 }
+
+
+
+
+
+
+//// handle if the player is Syncing with other
+//private void Syncing(Player _player)
+//{
+//    // setting up the packet for syncing this player with the other one
+//    // printing that server start to notiffy the other player
+//    _actions.Add(() => Console.Write($"Syncing {_player.Name} to the other player",
+//        Color.yellow));
+
+//    // preparing the packet to inform the connected player
+//    Packet _syncPacket = new Packet();
+//    // set the packet type as newPlayer
+//    // sending the player Id and name
+//    _syncPacket.PacketType = PacketType.NewPlayer;
+//    _syncPacket.PlayerGUID = _player.Id;
+//    _syncPacket.PlayerName = _player.Name;
+
+//    // sending to player who is waiting for the new player
+//    _connectedPlayers.ForEach(_p =>
+//    {
+//        // diferent from the actual player and waiting for the new player
+//        if (_p.Id != _player.Id && _p.GameState == GameState.WaitPlayer)
+//        {
+//            // print that server is notifying the existing player
+//            _actions.Add(() => Console.Write($"Notifying {_p.Name} " +
+//                $"that a new player has connected", Color.green));
+
+//            // send to player the packet to notify the new player
+//            // save the packet sent
+//            _p.PlayerPackets.Add(_syncPacket);
+//            // send the packet to the player waiting
+//            _p.SendPacket(_syncPacket);
+
+//            // since all the players are connected we can change the state of
+//            // this to waiting game start
+//            _p.GameState = GameState.WaitingStart;
+
+//            // printing that the existing player has been notifyed and now is read
+//            _actions.Add(() => Console.Write($"Player {_p.Name}, has been notifyed," +
+//                $"and now is read to player", Color.red));
+
+//            // setting the packet to notify the new player the existing players
+//            // creating the packet to send
+//            Packet _notifyExisting = new Packet();
+//            // add info from the existing connection
+//            // set the packet to new player type
+//            _notifyExisting.PacketType = PacketType.NewPlayer;
+//            // adding the id and the name of the existing player
+//            _notifyExisting.PlayerGUID = _p.Id;
+//            _notifyExisting.PlayerName = _p.Name;
+
+//            // add packet to packetList of the player
+//            _player.PlayerPackets.Add(_notifyExisting);
+//            // send the packet to the player
+//            _player.SendPacket(_notifyExisting);
+
+//            // priting that the new player was notifyed about the connected player
+//            _actions.Add(() => Console.Write($"Player {_player.Name} know about" +
+//                $"{_p.Name}", Color.red));
+//        }
+//    });
+//    // since the new player as known of the existing players and they know about the new
+//    // one, we can change the state of this player to waitingStart
+//    _player.GameState = GameState.WaitingStart;
+
+//    //printing that the new player is ready to play
+//    _actions.Add(() => Console.Write($"The player {_player.Name} is now ready to player",
+//        Color.green));
+//}
+
+////handle if the player is waiting for start
+//private void WaitForStart(Player _player)
+//{
+//    //TODO
+//}
+
+////handle if player is countingDown
+//private void CountDown(Player _player)
+//{
+//    // TODO
+//}
+
+////handle if the player is in the game
+//private void GameStarted(Player _player)
+//{
+//    // TODO
+//}
+
+//// handle if the player is in endGame state
+//private void EndGame(Player _player)
+//{
+//    //TODO
+//}
+//#endregion
+
+
+
 
 //TO DO 
 

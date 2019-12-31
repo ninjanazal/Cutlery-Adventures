@@ -73,7 +73,7 @@ MonoBehaviour:
   m_MinSize: {x: 204, y: 344}
   m_MaxSize: {x: 4004, y: 8044}
   vertical: 1
-  controlID: 35
+  controlID: 38
 --- !u!114 &4
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -178,7 +178,7 @@ MonoBehaviour:
   m_MinSize: {x: 640, y: 344}
   m_MaxSize: {x: 18010, y: 10022}
   vertical: 0
-  controlID: 34
+  controlID: 74
 --- !u!114 &8
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -203,7 +203,7 @@ MonoBehaviour:
   m_MinSize: {x: 917, y: 344}
   m_MaxSize: {x: 22012, y: 10022}
   vertical: 0
-  controlID: 146
+  controlID: 73
 --- !u!114 &9
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -336,7 +336,7 @@ MonoBehaviour:
     m_SkipHidden: 0
     m_SearchArea: 1
     m_Folders:
-    - Assets/scripts/networkSystem
+    - Assets/scripts
   m_ViewMode: 0
   m_StartGridSize: 16
   m_LastFolders: []
@@ -380,18 +380,18 @@ MonoBehaviour:
     m_ExpandedIDs: ffffffff000000004c2d0000b62d0000d62d0000ec2d0000b02e0000c22e000094300000be300000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
-      m_Name: 
-      m_OriginalName: 
+      m_Name: ServerSettings
+      m_OriginalName: ServerSettings
       m_EditFieldRect:
         serializedVersion: 2
         x: 0
         y: 0
         width: 0
         height: 0
-      m_UserData: 0
+      m_UserData: 10214
       m_IsWaitingForDelay: 0
       m_IsRenaming: 0
-      m_OriginalEventType: 11
+      m_OriginalEventType: 0
       m_IsRenamingFilename: 1
       m_ClientGUIView: {fileID: 6}
     m_SearchString: 
@@ -500,9 +500,9 @@ MonoBehaviour:
   m_SceneHierarchy:
     m_TreeViewState:
       scrollPos: {x: 0, y: 0}
-      m_SelectedIDs: 
+      m_SelectedIDs: e6270000
       m_LastClickedID: 0
-      m_ExpandedIDs: f6f8ffff2cf9ffffcaf9ffff72fbffff
+      m_ExpandedIDs: aee8ffffe0e8ffff7ae9ffff72fbffff143500001c350000
       m_RenameOverlay:
         m_UserAcceptedRename: 0
         m_Name: 
@@ -562,9 +562,9 @@ MonoBehaviour:
   m_PlayAudio: 0
   m_AudioPlay: 0
   m_Position:
-    m_Target: {x: 313.82266, y: 247.1272, z: -61.5}
+    m_Target: {x: 334.7062, y: 270.2213, z: -123.21794}
     speed: 2
-    m_Value: {x: 313.82266, y: 247.1272, z: -61.5}
+    m_Value: {x: 334.7062, y: 270.2213, z: -123.21794}
   m_RenderMode: 0
   m_CameraMode:
     drawMode: 0
@@ -597,9 +597,9 @@ MonoBehaviour:
     speed: 2
     m_Value: {x: 0, y: 0, z: 0, w: 1}
   m_Size:
-    m_Target: 550.34875
+    m_Target: 402.5428
     speed: 2
-    m_Value: 550.34875
+    m_Value: 402.5428
   m_Ortho:
     m_Target: 1
     speed: 2

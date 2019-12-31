@@ -92,7 +92,7 @@ public class MenuController : MonoBehaviour
 
         // starting the server 
         // passing the server ip and the player name
-        _netWorkController.StartConnectionToServer(_serverIP, _playerName);
+        _netWorkController.StartConnection(_serverIP, _playerName);
 
         //disableConnectBtn
         _connectBtn.enabled = false;
