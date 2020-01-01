@@ -63,6 +63,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\_scripts\MenuScripts\ConnectionScreen.cs" />
     <Compile Include="Assets\_scripts\MenuScripts\MenuController.cs" />
     <Compile Include="Assets\_scripts\NetworkSystem\ClientNetworkController.cs" />
     <Reference Include="Unity.Timeline.Editor">

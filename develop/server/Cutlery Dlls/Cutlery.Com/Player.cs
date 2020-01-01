@@ -18,7 +18,7 @@ namespace Cutlery.Com
         public Guid Id { get; set; }                // unique player id
         public GameState GameState { get; set; }    // player state
         public string Name { get; set; }            // player name
-        public Color PlayerColor { get; set; }      // player color
+        public CutleryColor PlayerColor { get; set; }      // player color
         public Position PlayerPos { get; set; }     // player position
         public int PlayerScore { get; private set; }    // player score (read only var)
 
@@ -72,7 +72,7 @@ namespace Cutlery.Com
             // read string from the opend stream
             string jsonPacket = PlayerReader.ReadString();
             //convert the string to a packet through json deserialization
-            return (Packet)JsonConvert.DeserializeObject(jsonPacket, _jsonSettings);
+            return JsonConvert.DeserializeObject<Packet>(jsonPacket, _jsonSettings);
         }
 
         // regist score point

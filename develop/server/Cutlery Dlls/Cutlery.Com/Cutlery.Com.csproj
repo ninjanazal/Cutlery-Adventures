@@ -45,6 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CutleryColor.cs" />
     <Compile Include="GameState.cs" />
     <Compile Include="Packet.cs" />
     <Compile Include="PacketType.cs" />

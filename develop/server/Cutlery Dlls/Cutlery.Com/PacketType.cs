@@ -12,6 +12,8 @@
         PlayerPosition, PlayerAction,
         // sent both ways
         PlayerScore, ResetPlayerPosition,
+        // types for objects in game, NPCs
+        SetObjPosition, DestroyObj,
         GameEnd, RematchGame,
         // sent to players
         ConnectionRefused

@@ -2,10 +2,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Cutlery.Com;
 
 public class MenuController : MonoBehaviour
 {
     // private vars
+
+    // displayer
     // reference to buttons
     private Button _playBtn, _exitBtn, _connectBtn, _cancelBtn;
     // reference to input filed
@@ -16,13 +19,21 @@ public class MenuController : MonoBehaviour
     // private marker if trying to connect
     private bool _tryingToConnect;
 
+    // connectionScreen
+    // reference to the  ConnectionScreen
+    private ConnectionScreen _connectionScreen;
+
+
     // connection
     //reference to newtwork controller
     private ClientNetworkController _netWorkController;
+
     // player name from connection
     private string _playerName;
     // server Ip
     private string _serverIP;
+
+
     private void Awake()
     {
         // set try to connect to false
@@ -102,11 +113,48 @@ public class MenuController : MonoBehaviour
     // cancel play button
     public void CancelBtnCallback()
     {
+        // define that player is no more trying to connecnt
+        _tryingToConnect = false;
+
         // if cancel is pressed, remove the popup
         _connectionPopUp.SetActive(false);
         // reactivate play and exit button
         _playBtn.enabled = true;
         _exitBtn.enabled = true;
+    }
+    #endregion
+
+    //ConnectionVisualizer
+    #region ConnectionVisualizer
+    public void DisplayStartConnection()
+    {
+    }
+
+    /// <summary>
+    /// Call this func to display local player connected to the server
+    /// the accepted name and returned color
+    /// </summary>
+    /// <param name="localName">Defined name</param>
+    /// <param name="cutleryColor">Returned color</param>
+    public void DisplayPlayerConnected(string localName, CutleryColor cutleryColor)
+    {
+        // call the func that will display this connection state
+        // since the color is sented in a custom format, translate this to native color
+        _connectionScreen.LocalClientConnected(localName,
+            new Color(cutleryColor.R, cutleryColor.G, cutleryColor.B));
+    }
+
+    /// <summary>
+    /// Call this func when the opponent player where reported to the client
+    /// </summary>
+    /// <param name="opName">Opponent name</param>
+    /// <param name="cutleryColor">Opponent color</param>
+    public void DisplayerConnectedOpponent(string opName, CutleryColor cutleryColor)
+    {
+        // call this func will display the opponet data
+        // since the coloris sented in a custom format, translate this to native color
+        _connectionScreen.OpponentClientConnected(opName,
+            new Color(cutleryColor.R, cutleryColor.G, cutleryColor.B));
     }
     #endregion
 
@@ -137,6 +185,9 @@ public class MenuController : MonoBehaviour
         // reference to the networkController
         _netWorkController =
             GameObject.Find("NetworkController").GetComponent<ClientNetworkController>();
+
+        // reference to the connection screen
+        _connectionScreen = GetComponent<ConnectionScreen>();
     }
 }
 

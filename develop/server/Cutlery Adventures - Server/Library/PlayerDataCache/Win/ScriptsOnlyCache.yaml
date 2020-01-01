@@ -15,6 +15,7 @@ ScriptsOnlyBuild:
     - UnityEditor.TestTools.TestRunner.TestListCacheData
     UnityEngine.UI.dll:
     - UnityEngine.UI.CanvasScaler
+    - UnityEngine.UI.Image
     - UnityEngine.UI.Text
   sceneClasses:
     Assets/Scenes/consoleView.unity:
@@ -39,6 +40,8 @@ ScriptsOnlyBuild:
     - Class: 114
       Script: {instanceID: 9840}
     - Class: 114
+      Script: {instanceID: 9880}
+    - Class: 114
       Script: {instanceID: 10062}
     - Class: 114
       Script: {instanceID: 10214}
@@ -49,6 +52,8 @@ ScriptsOnlyBuild:
     - Class: 128
       Script: {instanceID: 0}
     - Class: 157
+      Script: {instanceID: 0}
+    - Class: 213
       Script: {instanceID: 0}
     - Class: 222
       Script: {instanceID: 0}

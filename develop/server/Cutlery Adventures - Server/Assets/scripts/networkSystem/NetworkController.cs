@@ -7,6 +7,7 @@ using System;
 using Cutlery.Com;
 using System.Threading.Tasks;
 using System.IO;
+using System.Drawing;
 
 public class NetworkController : MonoBehaviour
 {
@@ -107,6 +108,7 @@ public class NetworkController : MonoBehaviour
                     case GameState.Disconnected:
                         // handle if a player is in disconneted state
                         // fornow if this happens the game ends and the connections are droped
+                        // todo func that close connection and remove the player from the list
                         break;
                     case GameState.Connecting:
                         // call handler for connecting state
@@ -114,15 +116,35 @@ public class NetworkController : MonoBehaviour
                         break;
                     case GameState.Sync:
                         // sending the last layer info to the other player
-                        break;
-                    case GameState.WaitPlayer:
-                        // just waits for confirmation of data recieved from the client
-                        break;
-                    case GameState.WaitingStart:
-                        // waiting server start the game
+                        SyncNewPlayer(conPlayer);
                         break;
                 }
             }
+
+            Debug.Log(_connectedPlayers.Count);
+            // need to confirm if all players are waiting players
+            // if soo and the player connected cout is 2, this means that server is ready
+            // to start a match
+
+            // if exists 2 players connected
+            // and all players waiting player
+            if (_connectedPlayers.Count == 2 && CheckAllPlayersWaiting())
+            {
+                // Debug that all players are waiting for other player and there is
+                // 2 players connect
+                Debug.Log( _connectedPlayers.Count +" players connected and all synced");
+                Console.Write(_connectedPlayers.Count + " players connected and synced", Color.yellow);
+
+                // change the serve to server started the match
+                _serverState = ServerState.ServerStartedMatch;
+            }
+
+
+        }
+        // if server has started the match
+        else
+        {
+
         }
     }
 
@@ -208,9 +230,6 @@ public class NetworkController : MonoBehaviour
                 //setting the player state on server
                 acceptedPlayer.GameState = GameState.Connecting;
 
-                // debug to server console that the client has been accepted
-                _asyncActions.Enqueue(() => Console.Write("Client added to connected Players"));
-
                 // setting the package to send
                 responsePacket.PacketType = PacketType.RequestPlayerInfo;
                 // adding the player generated id
@@ -222,6 +241,9 @@ public class NetworkController : MonoBehaviour
                 //queue actio to do
                 // add the accepted player to the connectedPlayers list
                 _asyncActions.Enqueue(() => { AddPlayer(acceptedPlayer); });
+
+                // debug to server console that the client has been accepted
+                _asyncActions.Enqueue(() => Console.Write("Client added to connected Players"));
 
                 // sending the response packet
                 acceptedPlayer.SendPacket(responsePacket);
@@ -261,6 +283,9 @@ public class NetworkController : MonoBehaviour
         }
     }
 
+    // this is needed because the way that unity handles with diferent threads
+    // since the gEngine only accepts changes in local obj in the main thread
+    // its needed to create functions to call on main thread
     // method that queue players to add
     private void AddPlayer(Player connectedPlayer)
     { _connectedPlayers.Add(connectedPlayer); }
@@ -298,9 +323,22 @@ public class NetworkController : MonoBehaviour
                 // change this player to sync with
                 // else set the player to wait other player
                 if (_connectedPlayers.Count == 2)
+                {
+                    // setting the player to sync with the existent one
                     _player.GameState = GameState.Sync;
+                    // defining the player color
+                    _player.PlayerColor =
+                        new CutleryColor(Color.blue.r, Color.blue.g, Color.blue.b);
+                }
                 else
+                {
+                    // setting the player state to wait player
+                    // this is the firt player that tryed to connect
                     _player.GameState = GameState.WaitPlayer;
+                    // defining the color
+                    _player.PlayerColor =
+                        new CutleryColor(Color.red.r, Color.red.g, Color.red.b);
+                }
 
                 // send the confirmation of the successfull regist
                 // create a new packet
@@ -309,12 +347,14 @@ public class NetworkController : MonoBehaviour
                 _confirmPacket.PacketType = PacketType.RegistationOK;
                 // add packet description
                 _confirmPacket.Desc = "Registration successful, wait other player";
+                // add the player color to the packet
+                _confirmPacket.ObjColor = _player.PlayerColor;
 
                 // print the new information of the player
                 // and the state the player is at
-
+                Debug.Log(_player.Name);
                 Console.Write($"{_player.Name} registed," +
-                $" PlayerState in serve{_player.GameState.ToString()}", Color.green);
+                $" PlayerState in server: {_player.GameState.ToString()}", Color.green);
 
                 // add packet to playerPackets
                 _player.PlayerPackets.Add(_confirmPacket);
@@ -327,10 +367,82 @@ public class NetworkController : MonoBehaviour
     //handler for the player syncState
     private void SyncNewPlayer(Player _player)
     {
+        // if the player is set to this method, there is allready another player connect
+        // soo its needed to send to the connected player the data of the new one
+        // and tell the new one about the existing player
 
+        // debug that the server start the process of informing the existing player
+        Debug.Log("Setting packet to informe the connected player");
+        Console.Write("Seetting packet to send to the connected player", Color.magenta);
+
+        // will sent to all the players setted as waiting player
+        // and sent to the new one the information of the players allready connected
+        _connectedPlayers.ForEach(p =>
+        {
+            // if the player id is diferent from the recent connected
+            if (p.Id != _player.Id && p.GameState == GameState.WaitPlayer)
+            {
+                // debug of the player beeing informed
+                Debug.Log($"Sending data about players: {p.Name} and {_player.Name}");
+                Console.Write($"Sending data about players: {p.Name} and {_player.Name}",
+                    Color.magenta);
+
+                // defining the new packet
+                Packet informativePacket = new Packet();
+                // setting the packet type to new player
+                informativePacket.PacketType = PacketType.NewPlayer;
+                // adding player Id
+                informativePacket.PlayerGUID = _player.Id;
+                // adding the payer name to the packet
+                informativePacket.PlayerName = _player.Name;
+                // adding the player color 
+                informativePacket.ObjColor = _player.PlayerColor;
+
+                // will save the packet on his packet list
+                p.PlayerPackets.Add(informativePacket);
+                // informative packet will be sent for this client
+                p.SendPacket(informativePacket);
+
+                // now build the packet to inform the new player of the existing one
+                // adding the allready connected player id
+                informativePacket.PlayerGUID = p.Id;
+                //adding the allready connected player name
+                informativePacket.PlayerName = p.Name;
+                // adding the allready connected player color
+                informativePacket.ObjColor = p.PlayerColor;
+
+                // save the packet on player packet list
+                _player.PlayerPackets.Add(informativePacket);
+                // server send the packet to the player
+                _player.SendPacket(informativePacket);
+            }
+        });
+
+        // since all players have beem informed about this player
+        // change this player to waiting players
+        // debug the changes
+        Console.Write("Player synced!", Color.green);
+        _player.GameState = GameState.WaitPlayer;
     }
 
     #endregion
+
+    // internal methods
+    private bool CheckAllPlayersWaiting()
+    {
+        // define the var for hold if all players are waiting
+        bool validator = false;
+        // for each connected player
+        foreach (Player p in _connectedPlayers)
+        {
+            // check if player is on wait state
+            validator = (p.GameState == GameState.WaitPlayer) ? true : false;
+            // if not in waiting state break the loop
+            if (!validator) break;
+        }
+        // retur the value
+        return validator;
+    }
 }
 
 
@@ -338,74 +450,6 @@ public class NetworkController : MonoBehaviour
 
 
 
-//// handle if the player is Syncing with other
-//private void Syncing(Player _player)
-//{
-//    // setting up the packet for syncing this player with the other one
-//    // printing that server start to notiffy the other player
-//    _actions.Add(() => Console.Write($"Syncing {_player.Name} to the other player",
-//        Color.yellow));
-
-//    // preparing the packet to inform the connected player
-//    Packet _syncPacket = new Packet();
-//    // set the packet type as newPlayer
-//    // sending the player Id and name
-//    _syncPacket.PacketType = PacketType.NewPlayer;
-//    _syncPacket.PlayerGUID = _player.Id;
-//    _syncPacket.PlayerName = _player.Name;
-
-//    // sending to player who is waiting for the new player
-//    _connectedPlayers.ForEach(_p =>
-//    {
-//        // diferent from the actual player and waiting for the new player
-//        if (_p.Id != _player.Id && _p.GameState == GameState.WaitPlayer)
-//        {
-//            // print that server is notifying the existing player
-//            _actions.Add(() => Console.Write($"Notifying {_p.Name} " +
-//                $"that a new player has connected", Color.green));
-
-//            // send to player the packet to notify the new player
-//            // save the packet sent
-//            _p.PlayerPackets.Add(_syncPacket);
-//            // send the packet to the player waiting
-//            _p.SendPacket(_syncPacket);
-
-//            // since all the players are connected we can change the state of
-//            // this to waiting game start
-//            _p.GameState = GameState.WaitingStart;
-
-//            // printing that the existing player has been notifyed and now is read
-//            _actions.Add(() => Console.Write($"Player {_p.Name}, has been notifyed," +
-//                $"and now is read to player", Color.red));
-
-//            // setting the packet to notify the new player the existing players
-//            // creating the packet to send
-//            Packet _notifyExisting = new Packet();
-//            // add info from the existing connection
-//            // set the packet to new player type
-//            _notifyExisting.PacketType = PacketType.NewPlayer;
-//            // adding the id and the name of the existing player
-//            _notifyExisting.PlayerGUID = _p.Id;
-//            _notifyExisting.PlayerName = _p.Name;
-
-//            // add packet to packetList of the player
-//            _player.PlayerPackets.Add(_notifyExisting);
-//            // send the packet to the player
-//            _player.SendPacket(_notifyExisting);
-
-//            // priting that the new player was notifyed about the connected player
-//            _actions.Add(() => Console.Write($"Player {_player.Name} know about" +
-//                $"{_p.Name}", Color.red));
-//        }
-//    });
-//    // since the new player as known of the existing players and they know about the new
-//    // one, we can change the state of this player to waitingStart
-//    _player.GameState = GameState.WaitingStart;
-
-//    //printing that the new player is ready to play
-//    _actions.Add(() => Console.Write($"The player {_player.Name} is now ready to player",
-//        Color.green));
-//}
 
 ////handle if the player is waiting for start
 //private void WaitForStart(Player _player)
