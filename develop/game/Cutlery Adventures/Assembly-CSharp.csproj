@@ -66,6 +66,7 @@
     <Compile Include="Assets\_scripts\MenuScripts\ConnectionScreen.cs" />
     <Compile Include="Assets\_scripts\MenuScripts\MenuController.cs" />
     <Compile Include="Assets\_scripts\NetworkSystem\ClientNetworkController.cs" />
+    <Compile Include="Assets\_scripts\PlayerScripts\PlayerScript.cs" />
     <Reference Include="Unity.Timeline.Editor">
       <HintPath>D:/Documentos/Github/Cutlery-Adventures/develop/game/Cutlery Adventures/Library/ScriptAssemblies/Unity.Timeline.Editor.dll</HintPath>
     </Reference>

@@ -2,8 +2,6 @@
 {
     public class CutleryColor
     {
-        // private var to store color values
-        private float _RColor, _GColor, _BColor;
         public CutleryColor(float R, float G, float B)
         {
             // constructor, store color component

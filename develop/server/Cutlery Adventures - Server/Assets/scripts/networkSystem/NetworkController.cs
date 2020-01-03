@@ -18,7 +18,7 @@ public class NetworkController : MonoBehaviour
 
     //server internal vars
     // server states
-    private enum ServerState { ServerWaitingPlayers, ServerStartedMatch }
+    private enum ServerState { ServerWaitingPlayers, ServerLoadingClients, ServerMatchRunning }
     private ServerState _serverState;
 
     //connection
@@ -31,6 +31,20 @@ public class NetworkController : MonoBehaviour
 
     // async tasks handler
     private Queue<Action> _asyncActions;
+
+    // gameSimulation elements
+    // dictionary of connected players gambeObject
+    private Dictionary<Guid, GameObject> _playersPrefsDict;
+
+    [Header("Spawnable prefabs")]
+    // map 
+    // map gameObj
+    public GameObject _selectedMap;
+    // start positions
+    private Transform[] _startPositions;
+
+    // prefab for player
+    public GameObject _playerPrefab;
 
     // Start Server Function
     public void StartServer()
@@ -58,11 +72,10 @@ public class NetworkController : MonoBehaviour
             _remoteEndPoint = new IPEndPoint(IPAddress.Any, UdpPort);
             _udpListener = new UdpClient(_remoteEndPoint);
 
+            // start list of asyncActions
+            _asyncActions = new Queue<Action>(2);
             // start Connected Player array
             _connectedPlayers = new List<Player>();
-
-            // start list of asyncActions
-            _asyncActions = new Queue<Action>();
 
             //server Loop 
             //async method, not using unity update cycle
@@ -128,23 +141,102 @@ public class NetworkController : MonoBehaviour
 
             // if exists 2 players connected
             // and all players waiting player
-            if (_connectedPlayers.Count == 2 && CheckAllPlayersWaiting())
+            if (_connectedPlayers.Count == 2 && CheckAllPlayersState(GameState.WaitPlayer))
             {
                 // Debug that all players are waiting for other player and there is
                 // 2 players connect
-                Debug.Log( _connectedPlayers.Count +" players connected and all synced");
+                Debug.Log(_connectedPlayers.Count + " players connected and all synced");
                 Console.Write(_connectedPlayers.Count + " players connected and synced", Color.yellow);
 
                 // change the serve to server started the match
-                _serverState = ServerState.ServerStartedMatch;
+                _serverState = ServerState.ServerLoadingClients;
             }
 
 
         }
         // if server has started the match
-        else
+        else if (_serverState == ServerState.ServerLoadingClients)
+        {
+            // this server state handles the match state of the server
+            foreach (Player conPlayer in _connectedPlayers)
+            {
+                // to all players in waiting players
+                // server is waiting for countdown packet, meaning all players have loaded the level
+                switch (conPlayer.GameState)
+                {
+                    case GameState.Disconnected:
+                        // disconnected state 
+                        break;
+                    case GameState.WaitPlayer:
+                        // if the player is in this state , tell that match has started
+                        WaitingPlayers(conPlayer);
+                        break;
+                    case GameState.CountDown:
+                        // player on this state is waiting client sending msg of sceen loaded
+                        // when all player recieved confirmation, change to waiting start
+                        CountDownHandler(conPlayer);
+                        break;
+                }
+
+            }
+
+            // shoud check if all the players are waiting start
+            // to continue on the server state, all the player need to be waiting start
+            if (_connectedPlayers.Count == 2 && CheckAllPlayersState(GameState.WaitingStart))
+            {
+                //wait 2s for sent packet
+
+                // debug to console, that match is starting
+                Debug.Log("Match started");
+                Console.Write("All players ready, starting match", Color.yellow);
+
+                // change the server state to matchrunning
+                _serverState = ServerState.ServerMatchRunning;
+
+                // set packet to inform players that match has started
+                Packet informationPacket = new Packet();
+                // set packet type of start match
+                informationPacket.PacketType = PacketType.StartMatch;
+
+                // send to all players that match starter
+                _connectedPlayers.ForEach(p =>
+                {
+                    // save the packet
+                    p.PlayerPackets.Add(informationPacket);
+                    //send the packet
+                    p.SendPacket(informationPacket);
+                    // change player state to gamerunning
+                    p.GameState = GameState.GameRunning;
+
+                    // debug to console
+                    Console.Write($"{p.Name} is playeing!", Color.magenta);
+                });
+
+                // call method that creats and send packet to inicialize players
+                SetSpawners();
+            }
+        }
+        // if server is running a match
+        else if (_serverState == ServerState.ServerMatchRunning)
         {
 
+            //run loop to see if player has data to read
+            // state that controlls all the data passing to the players
+            // server will sent the position of each player every cicle
+            foreach (Player conPlayer in _connectedPlayers)
+            {
+                switch (conPlayer.GameState)
+                {
+                    case GameState.Disconnected:
+                        break;
+                    case GameState.GameRunning:
+                        break;
+                    case GameState.GameEnded:
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
     }
 
@@ -193,7 +285,7 @@ public class NetworkController : MonoBehaviour
             Packet responsePacket = new Packet();
 
             // checking if the match has started
-            if (_serverState == ServerState.ServerStartedMatch)
+            if (_serverState != ServerState.ServerWaitingPlayers)
             {
                 //queue actions
                 _asyncActions.Enqueue(() =>
@@ -425,10 +517,62 @@ public class NetworkController : MonoBehaviour
         _player.GameState = GameState.WaitPlayer;
     }
 
+    // handler for waitPlayers
+    private void WaitingPlayers(Player _player)
+    {
+        //debug to console
+        Console.Write($"Sending packet to {_player.Name}, to load map", Color.blue);
+
+        // if this method is called and player is in this state
+        // the server is in matchState
+        // send a packet to the player saying that the game starter
+        Packet sentPacket = new Packet();
+        // setting the packet ty of gamestarted
+        sentPacket.PacketType = PacketType.GameStart;
+        // adding a description
+        sentPacket.Desc = "Game started, load map";
+
+        // add this packet to player packetList
+        _player.PlayerPackets.Add(sentPacket);
+        // send the packet to the player
+        _player.SendPacket(sentPacket);
+
+        // debug to console the state
+        Console.Write("Player on CountDown state, waiting for loadingConfirmation");
+        // change the player to countDownState
+        _player.GameState = GameState.CountDown;
+    }
     #endregion
 
+    //handler for countdownState
+    private void CountDownHandler(Player _player)
+    {
+        // server is waiting for client to send a countdown packet
+        // confirming that he is ready and loaded
+        if (_player.DataAvailabe())
+        {
+            // if player recieved data, read the data
+            Packet recievedPacket = _player.ReadPacket();
+
+            // check the packet type
+            if (recievedPacket.PacketType == PacketType.CountDown)
+            {
+                // debug to console
+                Console.Write($"Player {_player.Name} is ready and loaded");
+
+                // save the packet in to the packets types
+                _player.PlayerPackets.Add(recievedPacket);
+
+                // change the player state to waitingStart
+                _player.GameState = GameState.WaitingStart;
+                // debug on console
+                Console.Write("Player is now waiting to start the game");
+            }
+        }
+    }
+
     // internal methods
-    private bool CheckAllPlayersWaiting()
+    private bool CheckAllPlayersState(GameState state)
     {
         // define the var for hold if all players are waiting
         bool validator = false;
@@ -436,64 +580,86 @@ public class NetworkController : MonoBehaviour
         foreach (Player p in _connectedPlayers)
         {
             // check if player is on wait state
-            validator = (p.GameState == GameState.WaitPlayer) ? true : false;
+            validator = (p.GameState == state) ? true : false;
             // if not in waiting state break the loop
             if (!validator) break;
         }
         // retur the value
         return validator;
     }
+
+    // setting player spawns
+    private void SetSpawners()
+    {
+        // debug to console the operation
+        Console.Write("Spawning map on server");
+        // set map vars on server side                
+        // set the map on server side
+        _selectedMap = Instantiate(_selectedMap);
+
+        // load the start positions
+        _startPositions = new Transform[2];
+        _startPositions[0] = GameObject.Find("startPlayer1").GetComponent<Transform>();
+        _startPositions[1] = GameObject.Find("startPlayer2").GetComponent<Transform>();
+
+        // debug to console
+        Console.Write("Creating Objects for each player", Color.cyan);
+
+        // start the dictionar
+        _playersPrefsDict = new Dictionary<Guid, GameObject>(2);
+        // for each connected player set a preffab
+        foreach (Player p in _connectedPlayers)
+        {
+            // add the instanciated prefab to dic with the player id as key
+            // and the gameObject of the player, onn the corresponding position
+            GameObject goToAdd = Instantiate(_playerPrefab,
+                new Vector3(_startPositions[_connectedPlayers.IndexOf(p)].position.x,
+                _startPositions[_connectedPlayers.IndexOf(p)].position.y),
+                Quaternion.identity);
+
+            // add to dictionary
+            _playersPrefsDict.Add(p.Id, goToAdd);
+            Debug.Log(_playersPrefsDict.Count);
+
+            // after the player creation need to send the player spawn
+            // to clients
+            // creates a packet with this info
+            Packet spawnPlayerPacket = new Packet();
+
+
+            // set the packet type of set obj
+            spawnPlayerPacket.PacketType = PacketType.SetObjPosition;
+            // set desc of packet as player
+            spawnPlayerPacket.Desc = "player";
+            // adding the player id
+            spawnPlayerPacket.PlayerGUID = p.Id;
+
+            // add the player position on packet            
+            Position pos = new Position();
+            pos.X = goToAdd.transform.position.x;
+            pos.Y = goToAdd.transform.position.y;
+            spawnPlayerPacket.PlayerPosition = pos;
+
+            // save the packet on player
+            p.PlayerPackets.Add(spawnPlayerPacket);
+            // send the packet for all the players
+            _connectedPlayers.ForEach(player => player.SendPacket(spawnPlayerPacket));
+
+            // debug 
+            Console.Write($"Notifying all player about the GameObject of {p.Name};");
+        }
+        // debug the ending of spawning players prefs
+        Console.Write("Players obj created, starting simulations", Color.green);
+    }
 }
-
-
-
-
-
-
-
-////handle if the player is waiting for start
-//private void WaitForStart(Player _player)
-//{
-//    //TODO
-//}
-
-////handle if player is countingDown
-//private void CountDown(Player _player)
-//{
-//    // TODO
-//}
-
-////handle if the player is in the game
-//private void GameStarted(Player _player)
-//{
-//    // TODO
-//}
-
-//// handle if the player is in endGame state
-//private void EndGame(Player _player)
-//{
-//    //TODO
-//}
-//#endregion
-
-
-
-
-//TO DO 
-
 
 /*  TODO
  *  - (maybe) wait line to play
- *  - max 2 players per match
  *  - Create server loop
- *  - seting comunication stream
- *  - Accept clients
  *  - (Maybe) notify the new connections
  *  - Setting up match
  *  - match loop
  *  - win/lose statement
  *  - reset server status
  *  - server ready for new match
- *  - refuse connections if game starter
- *  - accept disconnected player if match on-going
  */

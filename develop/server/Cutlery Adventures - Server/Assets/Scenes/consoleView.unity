@@ -605,3 +605,7 @@ MonoBehaviour:
   serverIp: 127.0.0.1
   TcpPort: 7701
   UdpPort: 7702
+  _selectedMap: {fileID: 3173281914502937053, guid: 91f59c55c0a673e489d542e11bc40ed1,
+    type: 3}
+  _playerPrefab: {fileID: 2890506015533014983, guid: c231e5ad198c1db4290e8b260f96cd48,
+    type: 3}

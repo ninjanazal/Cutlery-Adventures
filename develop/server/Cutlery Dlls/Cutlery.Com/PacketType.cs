@@ -8,12 +8,14 @@
         PlayerInfo, PlayerState,
         // sent to client Setting up the match (pre-Match)
         CountDown, GameStart,
+        // start match
+        StartMatch,
         // sent both ways
         PlayerPosition, PlayerAction,
         // sent both ways
         PlayerScore, ResetPlayerPosition,
         // types for objects in game, NPCs
-        SetObjPosition, DestroyObj,
+        SetObjPosition, DestroyObj, SetObjectRotation,
         GameEnd, RematchGame,
         // sent to players
         ConnectionRefused

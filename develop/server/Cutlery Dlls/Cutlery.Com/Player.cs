@@ -35,6 +35,7 @@ namespace Cutlery.Com
         public BinaryReader PlayerReader { get; set; }
 
         // UDP connection
+        public UdpClient UdpCLient { get; set; }        //Udp Client
         public EndPoint ClientEndPoint { get; set; }    // client EndPoint
 
 

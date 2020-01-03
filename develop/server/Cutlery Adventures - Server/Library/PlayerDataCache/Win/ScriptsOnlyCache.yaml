@@ -31,6 +31,8 @@ ScriptsOnlyBuild:
       Script: {instanceID: 0}
     - Class: 48
       Script: {instanceID: 0}
+    - Class: 61
+      Script: {instanceID: 0}
     - Class: 81
       Script: {instanceID: 0}
     - Class: 104
@@ -310,7 +312,7 @@ ScriptsOnlyBuild:
     className: RawImage
   - hash:
       serializedVersion: 2
-      Hash: b1a96b621864fcdf0924f0ee892bb457
+      Hash: 7c0b38b89a6b3d2ed68fbeae5af22dee
     assemblyName: Assembly-CSharp.dll
     namespaceName: 
     className: NetworkController

@@ -18,14 +18,15 @@ namespace Cutlery.Com
         // packet can send information with all this components
         // packet type indicates what is sented
         // package vars
-        public Guid PlayerGUID { get; set; }        // player GUID
-        public string PlayerName { get; set; }      // player Name
-        public CutleryColor ObjColor { get; set; }   // colors colors
-        public GameState PlayerState { get; set; }  // player state
+        public Guid PlayerGUID { get; set; }            // player GUID
+        public string PlayerName { get; set; }          // player Name
+        public CutleryColor ObjColor { get; set; }      // colors colors
+        public GameState PlayerState { get; set; }      // player state
         public Position PlayerPosition { get; set; }    // position of the player
-        public int PlayerScore { get; set; }        //player score
-        public Position ObjPosition { get; set; }        // position for obj in game
+        public int PlayerScore { get; set; }            //player score
+        public Position ObjPosition { get; set; }       // position for obj in game
 
+        public Rotation ObjRotation { get; set; }       // rotation for obj in game
         #endregion
 
         #region Funcs

@@ -8,6 +8,7 @@ using System;
 using UnityEngine.UI;
 using System.Threading.Tasks;
 using System.IO;
+using UnityEngine.SceneManagement;
 
 public class ClientNetworkController : MonoBehaviour
 {
@@ -20,11 +21,21 @@ public class ClientNetworkController : MonoBehaviour
 
     // async tasks handler
     private Queue<Action> _asyncActions;
+    // async var for loading scenes
+    private AsyncOperation _loadAsyncOperation;
+    // private bool for isLoadingSceen operation
+    private bool _isLoadingSceenOperation;
 
     // private vars
     // players 
     private Player _player;
     private Player _opponentPlayer;
+
+    // public gameObj
+    public GameObject playerGO;
+
+    // gameobject dict controller
+    private Dictionary<Guid, PlayerScript> _spawnedPlayers;
 
     // since unity doesnt allow unity functions been called from other threads
     private List<Action> _actions;
@@ -54,6 +65,10 @@ public class ClientNetworkController : MonoBehaviour
 
         // start queue of asyncActions
         _asyncActions = new Queue<Action>();
+        // set the _isloadingOperation to false
+        _isLoadingSceenOperation = false;
+        //set the loadasyncAction to null
+        _loadAsyncOperation = null;
 
         // setting the players
         // local player
@@ -107,10 +122,23 @@ public class ClientNetworkController : MonoBehaviour
                     WaitingOpponentPlayer();
                     break;
                 case GameState.WaitingStart:
+                    // player on this state is waiting the server to send a start msg
+                    // with the map number (for now, since only one map added, this is not needed)
+                    WaitingMatchStart();
                     break;
                 case GameState.CountDown:
+                    // in this sate player will load the scene of the game
+                    // and when is done send to the server the confirmation
+                    CountDownState();
                     break;
                 case GameState.GameStarted:
+                    // player in this state is loaded and waiting for server to start the match
+                    GameStartedState();
+                    break;
+                case GameState.GameRunning:
+                    // in this state the game is running , expecting spawn packets, 
+                    //position and states
+                    GameRunningState();
                     break;
                 case GameState.GameEnded:
                     break;
@@ -130,6 +158,8 @@ public class ClientNetworkController : MonoBehaviour
 
         // defining the local player tcpVar
         _player.TcpClient = new TcpClient();
+
+        // defining the local player udpVar
 
         // debug to text
         _outputText.text = $"-> Trying to connected to {serverIp}:{_serverTcpPort}";
@@ -190,6 +220,53 @@ public class ClientNetworkController : MonoBehaviour
             // debug to text
             _outputText.text += "\n -> connection refused";
         }
+    }
+
+    // function that loads sceen async
+    // and reports to the server that player is ready to play
+    private async Task<bool> LoadSceanAsync(string sceneName)
+    {
+        // debug telling that loadSceneAsync has started
+        _asyncActions.Enqueue(() =>
+        {
+            // set loadingOperation bool to true
+            _isLoadingSceenOperation = true;
+            Debug.Log("Start loading the scene");
+            _outputText.text += "\n-> Start loading the scene";
+        });
+
+        // begin to load the scene
+        AsyncOperation asyncOperation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
+        // disable the activation of this scene
+        asyncOperation.allowSceneActivation = false;
+
+        // is loaded bool
+        bool isLoaded = false;
+
+        // while the loading is not ready
+        while (!isLoaded)
+        {
+            // print the progress of the load
+            _asyncActions.Enqueue(() =>
+            {
+                float progress = asyncOperation.progress;
+                _outputText.text += $"\n-> Loading progress: {progress * 100}%";
+                // check if the progress is bigger than 0.9
+                // if soo, define the isLoaded to true
+                if (progress >= 0.9f)
+                    isLoaded = true;
+            });
+
+            // if hasnt ended loading the scene return null;
+            await Task.Delay(500);
+        }
+        _asyncActions.Enqueue(() =>
+        {
+            // queue the finished asyncOperation
+            _asyncActions.Enqueue(() => _loadAsyncOperation = asyncOperation);
+        });
+        Debug.Log("finished loading");
+        return true;
     }
 
     // execute queued asyncAction
@@ -329,7 +406,6 @@ public class ClientNetworkController : MonoBehaviour
                 // extract data from the packet
                 // save color set from the server to the player
                 _player.PlayerColor = recievedPacket.ObjColor;
-                Debug.Log(recievedPacket.ObjColor.B);
 
                 // show the packet desc
                 _outputText.text += "\n-> " + recievedPacket.Desc;
@@ -397,6 +473,177 @@ public class ClientNetworkController : MonoBehaviour
         }
     }
 
+    // handle for wait match start
+    private void WaitingMatchStart()
+    {
+        // client will wait for a packet of type match started
+        if (_player.DataAvailabe())
+        {
+            // debug this state
+            Debug.Log("Data available on waiting start state");
+            _outputText.text += "\n-> Data available on waiting start state";
+
+            // read the pending data
+            Packet recievedPacket = _player.ReadPacket();
+
+            // check what packet type is
+            if (recievedPacket.PacketType == PacketType.GameStart)
+            {
+                // if passes this if
+                // save the packet on player packet
+                _player.PlayerPackets.Add(recievedPacket);
+
+                // change the player state to countdown
+                _player.GameState = GameState.CountDown;
+            }
+        }
+    }
+
+    // handler for countDown state
+    private async void CountDownState()
+    {
+        // if an async func is onGOing
+        if (!_isLoadingSceenOperation)
+        {
+            // set var to null before waiting the new one
+            _loadAsyncOperation = null;
+
+            // if player enter this state, should start to load the scene
+            Task<bool> loading = LoadSceanAsync("trainStationMap");
+            // wait for the result
+            bool result = await loading;
+        }
+
+        // check if the load scene has ended
+        if (_loadAsyncOperation != null)
+        {
+            // the operation has ended
+            Debug.Log("finished loading the scene");
+            _outputText.text += "\n-> Map loaded, wait server to start";
+
+            //send packet to server saying that player is loaded
+            Packet loadedPacket = new Packet();
+            // set the packet type of countdown
+            loadedPacket.PacketType = PacketType.CountDown;
+            // save the packet on player packets
+            _player.PlayerPackets.Add(loadedPacket);
+
+            // sent packet to server
+            _player.SendPacket(loadedPacket);
+            // debug to text
+            Debug.Log("Packet informing server of loaded state sented");
+            _outputText.text += "\n-> Packet informing of load sented";
+
+            // change client to gameStarted state
+            _player.GameState = GameState.GameStarted;
+        }
+    }
+
+    // handler for gameStarted State
+    private void GameStartedState()
+    {
+        // check for available data
+        if (_player.DataAvailabe())
+        {
+            // if data is available in this state
+            // read the data
+            Packet recievedPacket = _player.ReadPacket();
+
+            // player waiting for packet of type start match
+            if (recievedPacket.PacketType == PacketType.StartMatch)
+            {
+                // save the recieved packet
+                _player.PlayerPackets.Add(recievedPacket);
+
+                // debug to text that match as started
+                _outputText.text += "\n-> match started, change scenes";
+
+                // change the player state to matchrunning
+                _player.GameState = GameState.GameRunning;
+
+                // reset the vars needed
+                _isLoadingSceenOperation = false;
+                _loadAsyncOperation.allowSceneActivation = true;
+
+                // start a start the spawnedGO dic
+                _spawnedPlayers = new Dictionary<Guid, PlayerScript>(2);
+
+
+                // start udp  Connection
+                _outputText.text += "\n-> started Upd Connection";
+                _player.UdpCLient = new UdpClient();
+                // define the endpoint for the server
+                IPEndPoint iPEndPoint = new IPEndPoint(_IpAdress, _serverUdpPort);
+                _player.UdpCLient.Connect(iPEndPoint);
+
+                // start reading packets from the udp connection
+
+            }
+        }
+    }
+
+    // handler for GameRunning State
+    private void GameRunningState()
+    {
+        // if player has data available here
+        if (_player.DataAvailabe())
+        {
+            // debug to text
+            _outputText.text = "data available on TCP stream";
+            // multiple types of packets should be loaded here
+            // setObj packet, controls the instanciation of gameObjects
+
+            // read the data
+            Packet recievedPacket = _player.ReadPacket();
+            // if the packet is a setobjpacket, the desc tells what obj should be spawned
+            if (recievedPacket.PacketType == PacketType.SetObjPosition)
+            {
+                // debug to text
+                _outputText.text += "\n-> new spawn recieved";
+
+                // save the packet
+                _player.PlayerPackets.Add(recievedPacket);
+                // if the recieve packet has is des player
+                if (recievedPacket.Desc == "player")
+                {
+                    // debug to text
+                    _outputText.text += "\n-> Spawning new player";
+
+                    // client should spawn a player game Obj
+                    //add the game obj to the dictionary of spawnable players
+                    _spawnedPlayers.Add(recievedPacket.PlayerGUID,
+                        Instantiate(playerGO).GetComponent<PlayerScript>());
+
+                    // check if the obj the local player
+                    // for setting the player color, and name on the obj
+                    if (recievedPacket.PlayerGUID == _player.Id)
+                    {
+                        //set the spawned player info
+                        _spawnedPlayers[_player.Id].OnPlayerSpanw(_player.Id,
+                            _player.Name,
+                            _player.PlayerColor, true);
+                    }
+                    // if not, then the spawned player is the opponent
+                    else
+                    {
+                        // set the spawned player info
+                        _spawnedPlayers[_opponentPlayer.Id].OnPlayerSpanw(_opponentPlayer.Id,
+                            _opponentPlayer.Name, _opponentPlayer.PlayerColor,
+                            false);
+                    }
+                    // set the position of the spawned player
+                    _spawnedPlayers[recievedPacket.PlayerGUID].SetPosition(
+                        recievedPacket.PlayerPosition.X, recievedPacket.PlayerPosition.Y);
+                }
+
+            }
+        }
+    }
+    #endregion
+
+
+    #region staticMethods
+    // 
     #endregion
 }
 
