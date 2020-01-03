@@ -25,6 +25,8 @@ public class PlayerScript : MonoBehaviour
     public Text _playernameText;                // player name text
     public RawImage _playerColorImage;          // player color
     public SpriteRenderer _playerRenderer;      // player sprite renderer
+    // reference to the networkController
+    private ClientNetworkController _clientNet;
 
     [Header("Values for movement")]
     // public vars for movement
@@ -36,10 +38,9 @@ public class PlayerScript : MonoBehaviour
 
     // old value of postion
     private Vector2 _oldPosition;
-    private float _oldSpriteRotation;
 
     // func is called when a new player is spawned
-    public void OnPlayerSpanw(Guid pId, string pName, CutleryColor pColor, bool isLocal)
+    public void OnPlayerSpanw(Guid pId, string pName, CutleryColor pColor, bool isLocal, ClientNetworkController clientNetwork)
     {
         // save on func vars the id, name and color of the spawned player
         _playerId = pId;
@@ -64,27 +65,32 @@ public class PlayerScript : MonoBehaviour
             _playerRenderer.color = new Color(_playerRenderer.color.r,
                 _playerRenderer.color.g, _playerRenderer.color.b, 0.5f) * _playerColor;
         }
-        // saving the old states
-        _oldPosition = _playerTransform.position;
-        _oldSpriteRotation = _spriteTransform.rotation.y;
+        else
+        {
+            //save the controller
+            _clientNet = clientNetwork;
+            // saving the old states
+            _oldPosition = _playerTransform.position;
+        }
     }
 
 
     #region SetVars
     // func called when a new position is defined
-    public void SetPosition(float x, float y)
+    public void SetTransform(float x, float y, float rotY)
     {
-        // set the position
-        _playerTransform.position = new Vector3(x, y, 0.0f);
+        // if this method is called on the local player
+        if (_isLocal)
+        {
+            // set the position
+            _playerTransform.position = new Vector3(x, y, 0.0f);
+            // seting the new sprite rotation
+            _spriteTransform.rotation = new Quaternion(0f, rotY, 0f, 0f);
+        }
     }
 
-    // func called when a new rotation is defined
-    public void SetRotation(float y)
-    {
-        // aplay the rotation to the spriteRender
-        _spriteTransform.rotation = new Quaternion(0f, y, 0f, 0f);
-    }
     #endregion
+
 
     private void Update()
     {
@@ -96,22 +102,20 @@ public class PlayerScript : MonoBehaviour
             // for evaluation
             Vector2 playerPos = new Vector2(_playerTransform.position.x,
                 _playerTransform.position.y);
+            
+            // check if the player moved
             if (playerPos != _oldPosition)
             {
+                // debug  that a new position will be sent
+                Debug.Log("New position, sending new data via udp");
                 // send new position to the server
+                // call the method to send data over udp
+                _clientNet.SendPlayerPosUdp(playerPos.x,
+                    playerPos.y, _spriteTransform.rotation.y);
+
                 // set the old position equal to the new one
                 _oldPosition = playerPos;
-
-                // since the rotation of the player only changed if the player move
-                if (_spriteTransform.rotation.y != _oldSpriteRotation)
-                {
-                    // if the old rotation is diferent from the new one
-                    // send to server the new rotation
-                    // set the old rotation equal to the new one
-                    _oldSpriteRotation = _spriteTransform.rotation.y;
-                }
             }
-
         }
     }
 
@@ -157,13 +161,13 @@ public class PlayerScript : MonoBehaviour
     private void OnTriggerEnter2D(Collider2D collision)
     {
         // if player is colliding with the ground
-        if (collision.gameObject.layer == LayerMask.NameToLayer("Ground"))
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Ground") && _isLocal)
             _isGrounded = true;
     }
     //when exiting
     private void OnTriggerExit2D(Collider2D collision)
     {// if player is colliding with the ground
-        if (collision.gameObject.layer == LayerMask.NameToLayer("Ground"))
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Ground") && _isLocal)
             _isGrounded = false;
 
     }

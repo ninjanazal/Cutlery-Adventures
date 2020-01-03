@@ -8,6 +8,8 @@ using Cutlery.Com;
 using System.Threading.Tasks;
 using System.IO;
 using System.Drawing;
+using System.Text;
+using Newtonsoft.Json;
 
 public class NetworkController : MonoBehaviour
 {
@@ -28,6 +30,7 @@ public class NetworkController : MonoBehaviour
 
     private UdpClient _udpListener;         // listener for UDP Connection
     private IPEndPoint _remoteEndPoint;     // valid end points
+    private bool _recievingUpdDatagrams;    // state of the udp listener
 
     // async tasks handler
     private Queue<Action> _asyncActions;
@@ -70,7 +73,9 @@ public class NetworkController : MonoBehaviour
             // defining udpListener
             // defining from where can server get data
             _remoteEndPoint = new IPEndPoint(IPAddress.Any, UdpPort);
-            _udpListener = new UdpClient(_remoteEndPoint);
+            _udpListener = new UdpClient(UdpPort);
+            // defining that udp wont recieve data
+            _recievingUpdDatagrams = false;
 
             // start list of asyncActions
             _asyncActions = new Queue<Action>(2);
@@ -134,7 +139,6 @@ public class NetworkController : MonoBehaviour
                 }
             }
 
-            Debug.Log(_connectedPlayers.Count);
             // need to confirm if all players are waiting players
             // if soo and the player connected cout is 2, this means that server is ready
             // to start a match
@@ -219,8 +223,19 @@ public class NetworkController : MonoBehaviour
         // if server is running a match
         else if (_serverState == ServerState.ServerMatchRunning)
         {
+            // if not running, start the udpListener recieving the data
+            if (!_recievingUpdDatagrams)
+            {
+                //debug to console
+                Console.Write("Start Recieving UdpDatagrams", Color.blue);
 
-            //run loop to see if player has data to read
+                // since the method will run in a internal asynca calling
+                _recievingUpdDatagrams = true;
+                // start reciving datagrams async
+                _udpListener.BeginReceive(new AsyncCallback(RecievingDatagramCallback), _udpListener);
+            }
+
+            // Udp listener will queue the requested actions
             // state that controlls all the data passing to the players
             // server will sent the position of each player every cicle
             foreach (Player conPlayer in _connectedPlayers)
@@ -230,10 +245,10 @@ public class NetworkController : MonoBehaviour
                     case GameState.Disconnected:
                         break;
                     case GameState.GameRunning:
+                        // at this state the client can send actions using tcp
+
                         break;
                     case GameState.GameEnded:
-                        break;
-                    default:
                         break;
                 }
             }
@@ -272,6 +287,14 @@ public class NetworkController : MonoBehaviour
             // set the player binaryread and binarywriter
             acceptedPlayer.PlayerReader = new BinaryReader(client.GetStream());
             acceptedPlayer.PlayerWriter = new BinaryWriter(client.GetStream());
+
+            // setting the Udp params
+            // udpClient
+            acceptedPlayer.UdpCLient = new UdpClient();
+            // seting the IpEndPoint
+            // this is the endPoint of the connected player
+            acceptedPlayer.ClientEndPoint = new IPEndPoint(((IPEndPoint)client.Client.RemoteEndPoint).Address,
+                ((IPEndPoint)client.Client.RemoteEndPoint).Port);
 
             // queue actions
             _asyncActions.Enqueue(() =>
@@ -361,6 +384,43 @@ public class NetworkController : MonoBehaviour
                 Console.Write("Connection refused", Color.blue);
             });
         }
+    }
+
+    // async callback for reading packets sent using udp
+    private void RecievingDatagramCallback(IAsyncResult asyncResult)
+    {
+        Debug.Log("UDP packet recieved");
+        // retriving the udpClient
+        UdpClient client = (UdpClient)asyncResult.AsyncState;
+        // retrieve the IpEndpoint
+        IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, UdpPort);
+
+        Debug.Log("Extracted data from asyncResult");
+        // recieved data
+        byte[] recievedData = client.EndReceive(asyncResult, ref endPoint);
+        Debug.Log("saved bytes");
+        // decoding the byte to a string
+        string recievedJsonString = Encoding.ASCII.GetString(recievedData);
+        Debug.Log("Decoded to string");
+        // saving this data as a packet
+        Packet recievedUdpPacket = JsonConvert.DeserializeObject<Packet>(recievedJsonString);
+
+        //Debug that a packet as been stored
+        Debug.Log("Packet stored from udp");
+
+        // since this is a async method we need to queue action to the main thread
+        _asyncActions.Enqueue(() =>
+        {
+            Debug.Log("adding to queue new AsyncRecieve");
+            // debug to console
+            Console.Write("UdpPacket recieved!");
+            // before treat the recieve packet, start recieving packets again if _recieving updadatagrams is true
+            if (_recievingUpdDatagrams)
+                _udpListener.BeginReceive(new AsyncCallback(RecievingDatagramCallback), _udpListener);
+        });
+
+        // confirm the packet type
+        //todo
     }
 
     // execute asyncMethods
@@ -619,7 +679,7 @@ public class NetworkController : MonoBehaviour
 
             // add to dictionary
             _playersPrefsDict.Add(p.Id, goToAdd);
-            Debug.Log(_playersPrefsDict.Count);
+            Debug.Log("_players obj added to dictionary " + _playersPrefsDict.Count);
 
             // after the player creation need to send the player spawn
             // to clients

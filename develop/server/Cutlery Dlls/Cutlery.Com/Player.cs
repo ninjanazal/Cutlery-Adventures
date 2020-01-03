@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
+using System.Text;
 
 namespace Cutlery.Com
 {
@@ -36,7 +37,8 @@ namespace Cutlery.Com
 
         // UDP connection
         public UdpClient UdpCLient { get; set; }        //Udp Client
-        public EndPoint ClientEndPoint { get; set; }    // client EndPoint
+        public IPEndPoint ClientEndPoint { get; set; }    // client EndPoint
+        public Guid LastPacketId { get; set; }          // id of the last recieved packet
 
 
         // player const
@@ -52,6 +54,7 @@ namespace Cutlery.Com
 
 
         //publc funcs
+        // tcp funcs
         /// <summary>
         /// Function serialize data on opened connection Stream
         /// </summary>
@@ -76,6 +79,28 @@ namespace Cutlery.Com
             return JsonConvert.DeserializeObject<Packet>(jsonPacket, _jsonSettings);
         }
 
+        // udpFuncs
+        //sendPacket
+        public void SendPacketUdp(Packet packet)
+        {
+            // set the stamp of time on the packet
+            packet.SetSendStamp();
+            // creats a string with the packet information
+            string jsonPacket = JsonConvert.SerializeObject(packet, _jsonSettings);
+            // encod the string msg to a byte array
+            Byte[] jsonPacketBytes = Encoding.ASCII.GetBytes(jsonPacket);
+            // send the bytes array to the udpClient endpoint
+            UdpCLient.Send(jsonPacketBytes, jsonPacketBytes.Length, ClientEndPoint);
+        }
+        // read udpBytes
+        public Packet ReadUdpBytes(Byte[] datagram)
+        {
+            // decoding the byte array to a string
+            string recievedJsonstring = Encoding.ASCII.GetString(datagram);
+            //returning the decoded string as a packet
+            return JsonConvert.DeserializeObject<Packet>(recievedJsonstring);
+        }
+
         // regist score point
         public void AddPlayerScorePoint()
         {
@@ -90,10 +115,6 @@ namespace Cutlery.Com
         // Close connection with the player
         public void CloseConnection() { TcpClient.Close(); }
 
-
-        // private funcs
-        // set the player endPoint from TcpClient provided
-        private void SetPlayerEndPoint() => ClientEndPoint = TcpClient.Client.RemoteEndPoint;
 
     }
 }

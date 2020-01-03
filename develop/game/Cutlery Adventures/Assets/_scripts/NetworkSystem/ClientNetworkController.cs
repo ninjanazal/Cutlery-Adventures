@@ -40,10 +40,7 @@ public class ClientNetworkController : MonoBehaviour
     // since unity doesnt allow unity functions been called from other threads
     private List<Action> _actions;
 
-    // vars for connection 
-    // tcpClient and UDPclient
-    private UdpClient _udpClient;
-
+    // vars for connection    
     // IpAddress var
     private IPAddress _IpAdress;
 
@@ -210,6 +207,14 @@ public class ClientNetworkController : MonoBehaviour
                 _player.PlayerWriter = new BinaryWriter(client.GetStream());
                 // start the list of packets
                 _player.PlayerPackets = new List<Packet>();
+
+                // output to text
+                _outputText.text += "\n-> Setting up Udp definition";
+
+                // setting the Server ipendpoint
+                _player.ClientEndPoint = new IPEndPoint(_IpAdress, _serverUdpPort);
+                // defining the player udp
+                _player.UdpCLient = new UdpClient();
             });
         }
         else
@@ -246,6 +251,9 @@ public class ClientNetworkController : MonoBehaviour
         // while the loading is not ready
         while (!isLoaded)
         {
+            // if hasnt ended loading the scene return null;
+            await Task.Delay(500);
+
             // print the progress of the load
             _asyncActions.Enqueue(() =>
             {
@@ -256,9 +264,6 @@ public class ClientNetworkController : MonoBehaviour
                 if (progress >= 0.9f)
                     isLoaded = true;
             });
-
-            // if hasnt ended loading the scene return null;
-            await Task.Delay(500);
         }
         _asyncActions.Enqueue(() =>
         {
@@ -568,16 +573,8 @@ public class ClientNetworkController : MonoBehaviour
                 // start a start the spawnedGO dic
                 _spawnedPlayers = new Dictionary<Guid, PlayerScript>(2);
 
-
-                // start udp  Connection
-                _outputText.text += "\n-> started Upd Connection";
-                _player.UdpCLient = new UdpClient();
-                // define the endpoint for the server
-                IPEndPoint iPEndPoint = new IPEndPoint(_IpAdress, _serverUdpPort);
-                _player.UdpCLient.Connect(iPEndPoint);
-
                 // start reading packets from the udp connection
-
+                // TODO
             }
         }
     }
@@ -621,7 +618,11 @@ public class ClientNetworkController : MonoBehaviour
                         //set the spawned player info
                         _spawnedPlayers[_player.Id].OnPlayerSpanw(_player.Id,
                             _player.Name,
-                            _player.PlayerColor, true);
+                            _player.PlayerColor, true, this);
+
+                        // set the position of the spawned local player
+                        _spawnedPlayers[recievedPacket.PlayerGUID].SetTransform(
+                            recievedPacket.PlayerPosition.X, recievedPacket.PlayerPosition.Y, 0f);
                     }
                     // if not, then the spawned player is the opponent
                     else
@@ -629,11 +630,13 @@ public class ClientNetworkController : MonoBehaviour
                         // set the spawned player info
                         _spawnedPlayers[_opponentPlayer.Id].OnPlayerSpanw(_opponentPlayer.Id,
                             _opponentPlayer.Name, _opponentPlayer.PlayerColor,
-                            false);
+                            false, this);
+
+                        // set the position of the spawned local player
+                        _spawnedPlayers[recievedPacket.PlayerGUID].SetTransform(
+                            recievedPacket.PlayerPosition.X, recievedPacket.PlayerPosition.Y, -180f);
                     }
-                    // set the position of the spawned player
-                    _spawnedPlayers[recievedPacket.PlayerGUID].SetPosition(
-                        recievedPacket.PlayerPosition.X, recievedPacket.PlayerPosition.Y);
+
                 }
 
             }
@@ -642,8 +645,44 @@ public class ClientNetworkController : MonoBehaviour
     #endregion
 
 
-    #region staticMethods
-    // 
-    #endregion
+    // handler for the static call, updatePositionOnServer
+    public void SendPlayerPosUdp(float x, float y, float rotY)
+    {
+        // send the new player position to the server via udp
+        // debug
+        Debug.Log("Sending a new player pos, using udp");
+        _outputText.text = "-> Sending player position using Udp";
+
+        // setting the packet to send
+        Packet updatePosPacket = new Packet();
+        // set the packet type to player position
+        updatePosPacket.PacketType = PacketType.PlayerPosition;
+
+        // seting the new values on packet information
+        Position pos = new Position();
+        pos.X = x;
+        pos.Y = y;
+        //adding to the packet
+        updatePosPacket.PlayerPosition = pos;
+
+        //setting the values for player rotation
+        Rotation rot = new Rotation(0f, rotY, 0f);
+        // add the rotation to the packet
+        updatePosPacket.ObjRotation = rot;
+
+        // adding the player id to the packet, its allways the local player since this method will only be called
+        // if is local
+        updatePosPacket.PlayerGUID = _player.Id;
+
+        // send packet using upd
+        _player.SendPacketUdp(updatePosPacket);
+
+        // adding packet to player packetlist
+        _player.PlayerPackets.Add(updatePosPacket);
+
+        // debug to text
+        Debug.Log("packet sented using upd");
+        _outputText.text += "\n-> Packet sented using udp";
+    }
 }
 
