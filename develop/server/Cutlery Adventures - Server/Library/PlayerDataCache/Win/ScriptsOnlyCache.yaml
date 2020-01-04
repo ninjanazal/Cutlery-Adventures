@@ -499,5 +499,5 @@ ScriptsOnlyBuild:
   platform: 5
   scenePathNames:
   - Assets/Scenes/consoleView.unity
-  playerPath: D:/Documentos/Github/Cutlery-Adventures/builds/Server/Cutlery Adventures
+  playerPath: E:/GitHub/Cutlery-Adventures/builds/server Build/Cutlery Adventures
     - Server.exe

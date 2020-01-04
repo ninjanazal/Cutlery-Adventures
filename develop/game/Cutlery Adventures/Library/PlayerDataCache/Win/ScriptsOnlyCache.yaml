@@ -588,5 +588,5 @@ ScriptsOnlyBuild:
   scenePathNames:
   - Assets/Scenes/MainMenu.unity
   - Assets/Scenes/trainStationMap.unity
-  playerPath: D:/Documentos/Github/Cutlery-Adventures/builds/client/Cutlery Adventures
+  playerPath: E:/GitHub/Cutlery-Adventures/builds/client Build/Cutlery Adventures
     - client.exe
