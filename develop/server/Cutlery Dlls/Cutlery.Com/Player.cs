@@ -23,6 +23,8 @@ namespace Cutlery.Com
         public Position PlayerPos { get; set; }     // player position
         public int PlayerScore { get; private set; }    // player score (read only var)
 
+        public int PlayerNumber { get; set; }       // playerNumer
+
         // connection data
         public List<Packet> PlayerPackets { get; set; } //packets sented/recieved 
 
@@ -38,7 +40,7 @@ namespace Cutlery.Com
         // UDP connection
         public UdpClient UdpCLient { get; set; }        //Udp Client
         public IPEndPoint ClientEndPoint { get; set; }    // client EndPoint
-        public Guid LastPacketId { get; set; }          // id of the last recieved packet
+        public long LastPacketStamp { get; set; }          // id of the last recieved packet
 
 
         // player const
@@ -84,7 +86,7 @@ namespace Cutlery.Com
         public void SendPacketUdp(Packet packet)
         {
             // set the stamp of time on the packet
-            packet.SetSendStamp();
+            packet.GetSendStamp = DateTime.Now.Ticks;
             // creats a string with the packet information
             string jsonPacket = JsonConvert.SerializeObject(packet, _jsonSettings);
             // encod the string msg to a byte array

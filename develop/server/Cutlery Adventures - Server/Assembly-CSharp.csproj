@@ -65,6 +65,8 @@
   <ItemGroup>
     <Compile Include="Assets\scripts\ConsoleView\Console.cs" />
     <Compile Include="Assets\scripts\networkSystem\NetworkController.cs" />
+    <Compile Include="Assets\scripts\ObjController.cs" />
+    <Compile Include="Assets\scripts\objScripts\TriggerController.cs" />
     <Compile Include="Assets\scripts\ServerSettings.cs" />
     <Reference Include="Unity.Timeline.Editor">
       <HintPath>E:/GitHub/Cutlery-Adventures/develop/server/Cutlery Adventures - Server/Library/ScriptAssemblies/Unity.Timeline.Editor.dll</HintPath>

@@ -283,6 +283,9 @@ MonoBehaviour:
   _playernameText: {fileID: 1034442394991388266}
   _playerColorImage: {fileID: 1034442394378887139}
   _playerRenderer: {fileID: 1034442395243235981}
+  _ScoreDisplayers:
+  - {fileID: 0}
+  - {fileID: 0}
   accelaration: 50
   jumpInpulse: 1150
 --- !u!61 &2194604512271876922

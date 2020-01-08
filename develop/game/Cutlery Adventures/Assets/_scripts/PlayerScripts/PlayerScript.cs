@@ -14,6 +14,8 @@ public class PlayerScript : MonoBehaviour
     private string _playerName;
     // player color
     private Color _playerColor;
+    //player Number
+    private int _playerNumber;
     // bool that indicates if is a local player
     private bool _isLocal;
 
@@ -25,6 +27,9 @@ public class PlayerScript : MonoBehaviour
     public Text _playernameText;                // player name text
     public RawImage _playerColorImage;          // player color
     public SpriteRenderer _playerRenderer;      // player sprite renderer
+
+    public GameObject[] _ScoreDisplayers;       // reference to goals objs
+
     // reference to the networkController
     private ClientNetworkController _clientNet;
 
@@ -39,16 +44,23 @@ public class PlayerScript : MonoBehaviour
     // old value of postion
     private Vector2 _oldPosition;
 
+    // latest jump button state
+    private float _lateJumpState;
+
+
     // func is called when a new player is spawned
-    public void OnPlayerSpanw(Guid pId, string pName, CutleryColor pColor, bool isLocal, ClientNetworkController clientNetwork)
+    public void OnPlayerSpanw(Guid pId, string pName, int pNum, CutleryColor pColor,
+        bool isLocal, ClientNetworkController clientNetwork)
     {
         // save on func vars the id, name and color of the spawned player
         _playerId = pId;
         _playerName = pName;
         _playerColor = new Color(pColor.R, pColor.G, pColor.B);
+        _playerNumber = pNum;
 
         //the network manager defines if this player is the local player
         _isLocal = isLocal;
+
 
         // set the components to the info passed
         _playernameText.text = _playerName;
@@ -71,6 +83,8 @@ public class PlayerScript : MonoBehaviour
             _clientNet = clientNetwork;
             // saving the old states
             _oldPosition = _playerTransform.position;
+            // setting the jump state
+            _lateJumpState = 0;
         }
     }
 
@@ -79,16 +93,19 @@ public class PlayerScript : MonoBehaviour
     // func called when a new position is defined
     public void SetTransform(float x, float y, float rotY)
     {
-        // if this method is called on the local player
-        if (_isLocal)
-        {
-            // set the position
-            _playerTransform.position = new Vector3(x, y, 0.0f);
-            // seting the new sprite rotation
-            _spriteTransform.rotation = new Quaternion(0f, rotY, 0f, 0f);
-        }
+
+        // set the position
+        _playerTransform.position = new Vector3(x, y, 0.0f);
+        // seting the new sprite rotation
+        _spriteTransform.rotation = new Quaternion(0f, rotY, 0f, 0f);
+
     }
 
+    // func called when the score changes
+    public void UpdateScore(int score)
+    {
+
+    }
     #endregion
 
 
@@ -102,12 +119,12 @@ public class PlayerScript : MonoBehaviour
             // for evaluation
             Vector2 playerPos = new Vector2(_playerTransform.position.x,
                 _playerTransform.position.y);
-            
+
             // check if the player moved
             if (playerPos != _oldPosition)
             {
                 // debug  that a new position will be sent
-                Debug.Log("New position, sending new data via udp");
+                Debug.Log("New position");
                 // send new position to the server
                 // call the method to send data over udp
                 _clientNet.SendPlayerPosUdp(playerPos.x,
@@ -141,15 +158,26 @@ public class PlayerScript : MonoBehaviour
                 _spriteTransform.rotation = new Quaternion(0f, -180f, 0f, 0f);
 
 
-            Debug.Log(_isGrounded);
             // check for jump state
-            if (_isGrounded && Input.GetAxis("Jump") != 0)
+            if (_isGrounded && Input.GetAxis("Vertical") > 0)
             {
                 // calculate the force to add when jump
                 Vector2 jumpVec = Vector2.up * jumpInpulse;
                 // add force to rigidBody
                 _playerRigidbody.AddForce(jumpVec);
             }
+
+            // check if the player pressed the action key
+            if (_lateJumpState == 0 && Input.GetAxis("Jump") > 0)
+            {
+                //debug the call
+                Debug.Log("Action button call");
+                // prefor the action request
+                _clientNet.RequestPlayerAction();
+            }
+
+            // save the jumpState value
+            _lateJumpState = Input.GetAxis("Jump");
         }
 
     }

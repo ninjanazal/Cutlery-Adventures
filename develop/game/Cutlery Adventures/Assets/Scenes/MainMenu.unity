@@ -1808,6 +1808,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerGO: {fileID: 1034442395093507743, guid: bb0084b953c35fc40a488870b9cc68f0,
     type: 3}
+  CutlerySprites:
+  - {fileID: -2698273708726929409, guid: bfa1f70a35dde4f4ea2d3605e8d5d50f, type: 3}
+  - {fileID: 3143319658638795022, guid: bfa1f70a35dde4f4ea2d3605e8d5d50f, type: 3}
+  - {fileID: 3364670109738271612, guid: bfa1f70a35dde4f4ea2d3605e8d5d50f, type: 3}
+  CutlerPrefab: {fileID: 2640737281747478913, guid: 4119cceea97475648b752f164ee5c66d,
+    type: 3}
 --- !u!1 &1304993174
 GameObject:
   m_ObjectHideFlags: 0

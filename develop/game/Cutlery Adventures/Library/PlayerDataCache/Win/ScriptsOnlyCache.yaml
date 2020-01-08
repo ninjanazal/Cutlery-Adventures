@@ -304,7 +304,7 @@ ScriptsOnlyBuild:
     className: Shadow
   - hash:
       serializedVersion: 2
-      Hash: 3244b4521013590401b9d35833b55bca
+      Hash: a1107a05e06ba2f4ec18719f072a456a
     assemblyName: Assembly-CSharp.dll
     namespaceName: 
     className: ClientNetworkController
@@ -466,7 +466,7 @@ ScriptsOnlyBuild:
     className: GraphicRaycaster
   - hash:
       serializedVersion: 2
-      Hash: 05dc908d6a6cc5f888a9a89492f154b5
+      Hash: 78ab7ba2e0dac819c0a2323a0d00511b
     assemblyName: Assembly-CSharp.dll
     namespaceName: 
     className: PlayerScript

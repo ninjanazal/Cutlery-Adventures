@@ -12,10 +12,11 @@
         StartMatch,
         // sent both ways
         PlayerPosition, PlayerAction,
+        AddForceTO,
         // sent both ways
         PlayerScore, ResetPlayerPosition,
         // types for objects in game, NPCs
-        SetObjPosition, DestroyObj, SetObjectRotation,
+        SetObjPosition, DestroyObj, SetObjectRotation, SpawnObj,
         GameEnd, RematchGame,
         // sent to players
         ConnectionRefused

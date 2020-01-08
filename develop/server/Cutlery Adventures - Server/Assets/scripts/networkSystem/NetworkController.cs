@@ -16,12 +16,15 @@ public class NetworkController : MonoBehaviour
     // public Vars
     [Header("Insert server information")]
     public string serverIp = "127.0.0.1";       // server Ip (loopBacK)
-    public int TcpPort = 7701, UdpPort = 7702;  // ports
+    public int TcpPort = 7701, UdpPort = 7702, UdpClientPort = 7703;  // ports
 
     //server internal vars
     // server states
     private enum ServerState { ServerWaitingPlayers, ServerLoadingClients, ServerMatchRunning }
     private ServerState _serverState;
+
+    // bool for track if the game is running
+    private bool _isMatchRunning;
 
     //connection
     private List<Player> _connectedPlayers;     // array of players for the next match
@@ -48,6 +51,13 @@ public class NetworkController : MonoBehaviour
 
     // prefab for player
     public GameObject _playerPrefab;
+    // prefab for the spawned obj
+    public GameObject obJPrefab;
+
+    // referenc to the obj in game
+    // only one obj will be in game each time
+
+    private GameObject _objInGame;
 
     // Start Server Function
     public void StartServer()
@@ -76,9 +86,11 @@ public class NetworkController : MonoBehaviour
             _udpListener = new UdpClient(UdpPort);
             // defining that udp wont recieve data
             _recievingUpdDatagrams = false;
+            // seting the is match runing to false
+            _isMatchRunning = false;
 
             // start list of asyncActions
-            _asyncActions = new Queue<Action>(2);
+            _asyncActions = new Queue<Action>();
             // start Connected Player array
             _connectedPlayers = new List<Player>();
 
@@ -97,163 +109,182 @@ public class NetworkController : MonoBehaviour
     private void Update()
     {
         // after all logic, resolve the actions queue
-        AsyncActionsClear();
+        if (_asyncActions.Count > 0)
+            StartCoroutine(AsyncActionsClear());
 
         // internal loop for acepting players
         // listen for new players , looking for pending connections
         if (_tcpListener.Pending())
-        {
-            // Debug to log
-            Debug.Log("New pending connection");
-            // debug to console
-            Console.Write("New Pending Connection found", Color.green);
+            PendingConnectionsResolver();
 
-            //start a async accepting the client
-            _tcpListener.BeginAcceptTcpClient(new AsyncCallback(AcceptingConnectionCallback),
-                _tcpListener);
-
-            // debug to log
-            Debug.Log("BeginAcceptStarted");
-        }
 
         // if server is waiting players
         if (_serverState == ServerState.ServerWaitingPlayers)
-        {
-            foreach (Player conPlayer in _connectedPlayers)
-            {
-                switch (conPlayer.GameState)
-                {
-                    case GameState.Disconnected:
-                        // handle if a player is in disconneted state
-                        // fornow if this happens the game ends and the connections are droped
-                        // todo func that close connection and remove the player from the list
-                        break;
-                    case GameState.Connecting:
-                        // call handler for connecting state
-                        Connecting(conPlayer);
-                        break;
-                    case GameState.Sync:
-                        // sending the last layer info to the other player
-                        SyncNewPlayer(conPlayer);
-                        break;
-                }
-            }
-
-            // need to confirm if all players are waiting players
-            // if soo and the player connected cout is 2, this means that server is ready
-            // to start a match
-
-            // if exists 2 players connected
-            // and all players waiting player
-            if (_connectedPlayers.Count == 2 && CheckAllPlayersState(GameState.WaitPlayer))
-            {
-                // Debug that all players are waiting for other player and there is
-                // 2 players connect
-                Debug.Log(_connectedPlayers.Count + " players connected and all synced");
-                Console.Write(_connectedPlayers.Count + " players connected and synced", Color.yellow);
-
-                // change the serve to server started the match
-                _serverState = ServerState.ServerLoadingClients;
-            }
-
-
-        }
+            WaitingPlayersStateResolver();                   // call resolver for waiting players
         // if server has started the match
         else if (_serverState == ServerState.ServerLoadingClients)
-        {
-            // this server state handles the match state of the server
-            foreach (Player conPlayer in _connectedPlayers)
-            {
-                // to all players in waiting players
-                // server is waiting for countdown packet, meaning all players have loaded the level
-                switch (conPlayer.GameState)
-                {
-                    case GameState.Disconnected:
-                        // disconnected state 
-                        break;
-                    case GameState.WaitPlayer:
-                        // if the player is in this state , tell that match has started
-                        WaitingPlayers(conPlayer);
-                        break;
-                    case GameState.CountDown:
-                        // player on this state is waiting client sending msg of sceen loaded
-                        // when all player recieved confirmation, change to waiting start
-                        CountDownHandler(conPlayer);
-                        break;
-                }
-
-            }
-
-            // shoud check if all the players are waiting start
-            // to continue on the server state, all the player need to be waiting start
-            if (_connectedPlayers.Count == 2 && CheckAllPlayersState(GameState.WaitingStart))
-            {
-                //wait 2s for sent packet
-
-                // debug to console, that match is starting
-                Debug.Log("Match started");
-                Console.Write("All players ready, starting match", Color.yellow);
-
-                // change the server state to matchrunning
-                _serverState = ServerState.ServerMatchRunning;
-
-                // set packet to inform players that match has started
-                Packet informationPacket = new Packet();
-                // set packet type of start match
-                informationPacket.PacketType = PacketType.StartMatch;
-
-                // send to all players that match starter
-                _connectedPlayers.ForEach(p =>
-                {
-                    // save the packet
-                    p.PlayerPackets.Add(informationPacket);
-                    //send the packet
-                    p.SendPacket(informationPacket);
-                    // change player state to gamerunning
-                    p.GameState = GameState.GameRunning;
-
-                    // debug to console
-                    Console.Write($"{p.Name} is playeing!", Color.magenta);
-                });
-
-                // call method that creats and send packet to inicialize players
-                SetSpawners();
-            }
-        }
+            LoadingClientsStateResolver();                  // call resolver for loading players
         // if server is running a match
         else if (_serverState == ServerState.ServerMatchRunning)
+            MatchRunningStateResolver();                    // call resolver for match running state
+    }
+
+    #region ServerStates
+    //resolv pending connections requests
+    private void PendingConnectionsResolver()
+    {
+        // Debug to log
+        Debug.Log("New pending connection");
+        // debug to console
+        Console.Write("New Pending Connection found", Color.green);
+
+        //start a async accepting the client
+        _tcpListener.BeginAcceptTcpClient(new AsyncCallback(AcceptingConnectionCallback),
+            _tcpListener);
+
+        // debug to log
+        Debug.Log("BeginAcceptStarted");
+    }
+
+    // resolver for waiting players server state
+    private void WaitingPlayersStateResolver()
+    {
+        foreach (Player conPlayer in _connectedPlayers)
         {
-            // if not running, start the udpListener recieving the data
-            if (!_recievingUpdDatagrams)
+            switch (conPlayer.GameState)
             {
-                //debug to console
-                Console.Write("Start Recieving UdpDatagrams", Color.blue);
-
-                // since the method will run in a internal asynca calling
-                _recievingUpdDatagrams = true;
-                // start reciving datagrams async
-                _udpListener.BeginReceive(new AsyncCallback(RecievingDatagramCallback), _udpListener);
-            }
-
-            // Udp listener will queue the requested actions
-            // state that controlls all the data passing to the players
-            // server will sent the position of each player every cicle
-            foreach (Player conPlayer in _connectedPlayers)
-            {
-                switch (conPlayer.GameState)
-                {
-                    case GameState.Disconnected:
-                        break;
-                    case GameState.GameRunning:
-                        // at this state the client can send actions using tcp
-
-                        break;
-                    case GameState.GameEnded:
-                        break;
-                }
+                case GameState.Disconnected:
+                    // handle if a player is in disconneted state
+                    // fornow if this happens the game ends and the connections are droped
+                    // todo func that close connection and remove the player from the list
+                    break;
+                case GameState.Connecting:
+                    // call handler for connecting state
+                    Connecting(conPlayer);
+                    break;
+                case GameState.Sync:
+                    // sending the last layer info to the other player
+                    SyncNewPlayer(conPlayer);
+                    break;
             }
         }
+
+        // need to confirm if all players are waiting players
+        // if soo and the player connected cout is 2, this means that server is ready
+        // to start a match
+
+        // if exists 2 players connected
+        // and all players waiting player
+        if (_connectedPlayers.Count == 2 && CheckAllPlayersState(GameState.WaitPlayer))
+        {
+            // Debug that all players are waiting for other player and there is
+            // 2 players connect
+            Debug.Log(_connectedPlayers.Count + " players connected and all synced");
+            Console.Write(_connectedPlayers.Count + " players connected and synced", Color.yellow);
+
+            // change the serve to server started the match
+            _serverState = ServerState.ServerLoadingClients;
+        }
+
     }
+
+    // resolver for loading clients state
+    private void LoadingClientsStateResolver()
+    {
+        // this server state handles the match state of the server
+        foreach (Player conPlayer in _connectedPlayers)
+        {
+            // to all players in waiting players
+            // server is waiting for countdown packet, meaning all players have loaded the level
+            switch (conPlayer.GameState)
+            {
+                case GameState.Disconnected:
+                    // disconnected state 
+                    break;
+                case GameState.WaitPlayer:
+                    // if the player is in this state , tell that match has started
+                    WaitingPlayers(conPlayer);
+                    break;
+                case GameState.CountDown:
+                    // player on this state is waiting client sending msg of sceen loaded
+                    // when all player recieved confirmation, change to waiting start
+                    CountDownHandler(conPlayer);
+                    break;
+            }
+
+        }
+
+        // shoud check if all the players are waiting start
+        // to continue on the server state, all the player need to be waiting start
+        if (_connectedPlayers.Count == 2 && CheckAllPlayersState(GameState.WaitingStart))
+        {
+            //wait 2s for sent packet
+
+            // debug to console, that match is starting
+            Debug.Log("Match started");
+            Console.Write("All players ready, starting match", Color.yellow);
+
+            // change the server state to matchrunning
+            _serverState = ServerState.ServerMatchRunning;
+            // set that match is running
+            _isMatchRunning = true;
+
+            // set packet to inform players that match has started
+            Packet informationPacket = new Packet();
+            // set packet type of start match
+            informationPacket.PacketType = PacketType.StartMatch;
+
+            // send to all players that match starter
+            _connectedPlayers.ForEach(p =>
+            {
+                // save the packet
+                p.PlayerPackets.Add(informationPacket);
+                //send the packet
+                p.SendPacket(informationPacket);
+                // change player state to gamerunning
+                p.GameState = GameState.GameRunning;
+
+                // debug to console
+                Console.Write($"{p.Name} is playeing!", Color.magenta);
+            });
+
+            // call method that creats and send packet to inicialize players
+            SetSpawners();
+        }
+    }
+
+    // resolver for match running sttate
+    private void MatchRunningStateResolver()
+    {
+        // if not running, start the udpListener recieving the data
+        if (!_recievingUpdDatagrams && _isMatchRunning)
+        {
+            //debug to console
+            Console.Write("Start Recieving UdpDatagrams", Color.blue);
+
+            // since the method will run in a internal asynca calling
+            _recievingUpdDatagrams = true;
+            // start reciving datagrams async
+            _udpListener.BeginReceive(new AsyncCallback(RecievingDatagramCallback), _udpListener);
+        }
+        // Udp listener will queue the requested actions
+        // state that controlls all the data passing to the players
+        // server will sent the position of each player every cicle
+        foreach (Player conPlayer in _connectedPlayers)
+        {
+            switch (conPlayer.GameState)
+            {
+                case GameState.GameRunning:
+                    // at this state the client can send actions using tcp
+                    GameRunningHandler(conPlayer);
+                    break;
+            }
+        }
+
+        // run match logic 
+        MatchLocgic();
+    }
+    #endregion
 
     #region AsyncMethods and Resolvers
     // async callback for accepting new players
@@ -287,14 +318,16 @@ public class NetworkController : MonoBehaviour
             // set the player binaryread and binarywriter
             acceptedPlayer.PlayerReader = new BinaryReader(client.GetStream());
             acceptedPlayer.PlayerWriter = new BinaryWriter(client.GetStream());
-
+            // setting the last packet stamp as 0
+            acceptedPlayer.LastPacketStamp = 0;
             // setting the Udp params
             // udpClient
             acceptedPlayer.UdpCLient = new UdpClient();
             // seting the IpEndPoint
             // this is the endPoint of the connected player
-            acceptedPlayer.ClientEndPoint = new IPEndPoint(((IPEndPoint)client.Client.RemoteEndPoint).Address,
-                ((IPEndPoint)client.Client.RemoteEndPoint).Port);
+            acceptedPlayer.ClientEndPoint =
+                new IPEndPoint(((IPEndPoint)client.Client.RemoteEndPoint).Address,
+                UdpClientPort);
 
             // queue actions
             _asyncActions.Enqueue(() =>
@@ -389,50 +422,102 @@ public class NetworkController : MonoBehaviour
     // async callback for reading packets sent using udp
     private void RecievingDatagramCallback(IAsyncResult asyncResult)
     {
-        Debug.Log("UDP packet recieved");
+        Debug.Log("recieved Data");
+
         // retriving the udpClient
         UdpClient client = (UdpClient)asyncResult.AsyncState;
-        // retrieve the IpEndpoint
+        // creating the IpEndpoint
         IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, UdpPort);
 
-        Debug.Log("Extracted data from asyncResult");
         // recieved data
         byte[] recievedData = client.EndReceive(asyncResult, ref endPoint);
-        Debug.Log("saved bytes");
+
         // decoding the byte to a string
         string recievedJsonString = Encoding.ASCII.GetString(recievedData);
-        Debug.Log("Decoded to string");
+
         // saving this data as a packet
         Packet recievedUdpPacket = JsonConvert.DeserializeObject<Packet>(recievedJsonString);
-
-        //Debug that a packet as been stored
-        Debug.Log("Packet stored from udp");
 
         // since this is a async method we need to queue action to the main thread
         _asyncActions.Enqueue(() =>
         {
-            Debug.Log("adding to queue new AsyncRecieve");
-            // debug to console
-            Console.Write("UdpPacket recieved!");
             // before treat the recieve packet, start recieving packets again if _recieving updadatagrams is true
             if (_recievingUpdDatagrams)
                 _udpListener.BeginReceive(new AsyncCallback(RecievingDatagramCallback), _udpListener);
         });
 
-        // confirm the packet type
-        //todo
+        // treating the data
+        if (recievedUdpPacket.PacketType == PacketType.PlayerPosition)
+        {
+            // if is a position update from client
+            // loock for the player who send int
+            foreach (Player player in _connectedPlayers)
+            {
+                // confirm the id
+                if (recievedUdpPacket.PlayerGUID == player.Id)
+                {
+                    // debug to console
+                    _asyncActions.Enqueue(()
+                        => Console.Write($"{player.Name} sent a UpdPacket", Color.magenta));
+
+                    // confim if this packet is newer
+                    if (recievedUdpPacket.GetSendStamp > player.LastPacketStamp)
+                    {
+                        //debug that is a valid packet
+                        _asyncActions.Enqueue(()
+                            => Console.Write("Valid packet", Color.green));
+
+                        // saving the recieved packet stamp
+                        player.LastPacketStamp = recievedUdpPacket.GetSendStamp;
+                        // and storing the packet
+                        player.PlayerPackets.Add(recievedUdpPacket);
+
+                        // if soo, Update the player Position on server
+                        // its a async method soo add to actions
+                        _asyncActions.Enqueue(() =>
+                        {
+                            // change the player transform on server
+                            _playersPrefsDict[player.Id].transform.position =
+                                new Vector3(recievedUdpPacket.PlayerPosition.X,
+                                recievedUdpPacket.PlayerPosition.Y, 0f);
+                        });
+                        // send this to the other player
+                        foreach (Player p in _connectedPlayers)
+                        {
+                            // if the player id os not equal to the pmoved player
+                            if (player.Id != p.Id)
+                            {
+                                // saving the packet sented for the player
+                                p.PlayerPackets.Add(recievedUdpPacket);
+                                // send the packet to the player
+                                p.SendPacketUdp(recievedUdpPacket);
+                                // debug to log
+                                _asyncActions.Enqueue(() =>
+                                Console.Write("Packet resented to " + p.Name));
+
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // execute asyncMethods
-    private void AsyncActionsClear()
+    private IEnumerator AsyncActionsClear()
     {
         // if exists any queued action queued
-        Debug.Log("AsyncActions queued: " + _asyncActions.Count);
-        while (_asyncActions.Count > 0)
+        // lock the var for execut
+        lock (_asyncActions)
         {
-            // execute the oldest action
-            _asyncActions.Dequeue()();
+            while (_asyncActions.Count > 0)
+            {
+                // execute the oldest action
+                _asyncActions.Dequeue()();
+            }
+            yield return null;
         }
+
     }
 
     // this is needed because the way that unity handles with diferent threads
@@ -481,6 +566,10 @@ public class NetworkController : MonoBehaviour
                     // defining the player color
                     _player.PlayerColor =
                         new CutleryColor(Color.blue.r, Color.blue.g, Color.blue.b);
+                    //defining player number
+                    _player.PlayerNumber = 2;
+                    // setting the udp endpoint from the player num
+                    _player.ClientEndPoint.Port = UdpClientPort + _player.PlayerNumber;
                 }
                 else
                 {
@@ -490,6 +579,10 @@ public class NetworkController : MonoBehaviour
                     // defining the color
                     _player.PlayerColor =
                         new CutleryColor(Color.red.r, Color.red.g, Color.red.b);
+                    //defining the player number
+                    _player.PlayerNumber = 1;
+                    // setting the udp endpoint from the player num
+                    _player.ClientEndPoint.Port = UdpClientPort + _player.PlayerNumber;
                 }
 
                 // send the confirmation of the successfull regist
@@ -501,6 +594,8 @@ public class NetworkController : MonoBehaviour
                 _confirmPacket.Desc = "Registration successful, wait other player";
                 // add the player color to the packet
                 _confirmPacket.ObjColor = _player.PlayerColor;
+                //adding the player number to the packet
+                _confirmPacket.PlayerNumber = _player.PlayerNumber;
 
                 // print the new information of the player
                 // and the state the player is at
@@ -549,6 +644,8 @@ public class NetworkController : MonoBehaviour
                 informativePacket.PlayerName = _player.Name;
                 // adding the player color 
                 informativePacket.ObjColor = _player.PlayerColor;
+                //adding the player number
+                informativePacket.PlayerNumber = _player.PlayerNumber;
 
                 // will save the packet on his packet list
                 p.PlayerPackets.Add(informativePacket);
@@ -562,6 +659,8 @@ public class NetworkController : MonoBehaviour
                 informativePacket.PlayerName = p.Name;
                 // adding the allready connected player color
                 informativePacket.ObjColor = p.PlayerColor;
+                // adding the allready connected player number
+                informativePacket.PlayerNumber = p.PlayerNumber;
 
                 // save the packet on player packet list
                 _player.PlayerPackets.Add(informativePacket);
@@ -602,7 +701,6 @@ public class NetworkController : MonoBehaviour
         // change the player to countDownState
         _player.GameState = GameState.CountDown;
     }
-    #endregion
 
     //handler for countdownState
     private void CountDownHandler(Player _player)
@@ -631,6 +729,55 @@ public class NetworkController : MonoBehaviour
         }
     }
 
+    // handler for gameRunning
+    private void GameRunningHandler(Player _player)
+    {
+        // check if the player has data available
+        if (_player.DataAvailabe())
+        {
+            // read the packet from the stream
+            Packet recievedPacket = _player.ReadPacket();
+
+            //check the packet type
+            // if is a action packet, 
+            if (recievedPacket.PacketType == PacketType.PlayerAction)
+            {
+                // debug to the console
+                Console.Write("Player action Recieved", Color.yellow);
+                // debug to log
+                Debug.Log("Player action recieved");
+
+                // lets check if the player obj is colliding with any obj
+                List<GameObject> collidingObjs = new List<GameObject>();
+
+                collidingObjs = _playersPrefsDict[_player.Id].
+                    GetComponent<TriggerController>().GetObjOnTrigger();
+                // check what type of obj is on the trigger
+                if (collidingObjs.Count > 0)
+                    collidingObjs.ForEach(obj =>
+                    {
+                        // if is a cutlery obj
+                        if (obj.CompareTag("Cutlery"))
+                        {
+                            // calculate the direction of the force
+                            Vector3 resultantForce =
+                                _objInGame.transform.position -
+                                _playersPrefsDict[_player.Id].transform.position;
+
+                            // add the force to the resultante Vector
+                            resultantForce *= 500f;
+
+                            // add the force to the obj
+                            _objInGame.GetComponent<ObjController>().AddForce(
+                                    new Vector2(resultantForce.x, resultantForce.y));
+                        }
+                    });
+            }
+        }
+    }
+    #endregion
+
+    #region Internal Methods
     // internal methods
     private bool CheckAllPlayersState(GameState state)
     {
@@ -673,8 +820,8 @@ public class NetworkController : MonoBehaviour
             // add the instanciated prefab to dic with the player id as key
             // and the gameObject of the player, onn the corresponding position
             GameObject goToAdd = Instantiate(_playerPrefab,
-                new Vector3(_startPositions[_connectedPlayers.IndexOf(p)].position.x,
-                _startPositions[_connectedPlayers.IndexOf(p)].position.y),
+                new Vector3(_startPositions[p.PlayerNumber - 1].position.x,
+                _startPositions[p.PlayerNumber - 1].position.y),
                 Quaternion.identity);
 
             // add to dictionary
@@ -711,15 +858,80 @@ public class NetworkController : MonoBehaviour
         // debug the ending of spawning players prefs
         Console.Write("Players obj created, starting simulations", Color.green);
     }
-}
 
-/*  TODO
- *  - (maybe) wait line to play
- *  - Create server loop
- *  - (Maybe) notify the new connections
- *  - Setting up match
- *  - match loop
- *  - win/lose statement
- *  - reset server status
- *  - server ready for new match
- */
+    // internal  match logic
+    private void MatchLocgic()
+    {
+        // run the match logic
+        // need to check if there is any matchObj allready spawned
+        if (_objInGame == null)
+        {
+            // if this var is null, there is no obj in game
+            _objInGame = Instantiate(obJPrefab, Vector3.zero, Quaternion.identity);
+
+            // after spawning a obj, server needs to inform all the players about the new spawn
+            // this elements are made using Tcp
+            // preparing the packet
+            Packet spawnObjPacket = new Packet();
+            // setting the packet type
+            spawnObjPacket.PacketType = PacketType.SpawnObj;
+            //defining the sprite of the ob
+            // since there is only 3 sprites
+            spawnObjPacket.ObjSprite = new System.Random().Next(0, 3);
+            // setting the obj position
+            Position objPos = new Position();
+            objPos.X = _objInGame.transform.position.x;
+            objPos.Y = _objInGame.transform.position.y;
+            // adding the position to the packet
+            spawnObjPacket.ObjPosition = objPos;
+
+            // debug on console
+            Console.Write("Spawning obj", Color.yellow);
+
+            // sending this information to all players
+            _connectedPlayers.ForEach(p =>
+            {
+                // add packet to player packet list
+                p.PlayerPackets.Add(spawnObjPacket);
+                // send the packet to the player
+                p.SendPacket(spawnObjPacket);
+            });
+        }
+    }
+
+    #endregion
+
+    #region public methods
+    // method called by the in game obj
+    public void UpdateObjPosition(float xPos, float yPos, float yRot)
+    {
+        // setting the packet for update in game Obj
+        Packet updateObjPacket = new Packet();
+
+        // setting the packet type
+        updateObjPacket.PacketType = PacketType.SetObjPosition;
+        // adding the position of the obj
+        Position objPos = new Position();
+        objPos.X = xPos;
+        objPos.Y = yPos;
+        // adding the position to the packet
+        updateObjPacket.ObjPosition = objPos;
+        // setting the obj rotation
+        Rotation rot = new Rotation(0f, yRot, 0);
+        //adding the rot to the packet
+        updateObjPacket.ObjRotation = rot;
+
+        // debug on console
+        Console.Write("Update obj pos", Color.grey);
+
+        // send this packet to all the players
+        _connectedPlayers.ForEach(p =>
+        {
+            // add the packet to the player packet
+            p.PlayerPackets.Add(updateObjPacket);
+            // sending this packet using udp
+            p.SendPacketUdp(updateObjPacket);
+        });
+    }
+    #endregion
+}

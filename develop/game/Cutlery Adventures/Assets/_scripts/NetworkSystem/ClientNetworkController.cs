@@ -9,6 +9,8 @@ using UnityEngine.UI;
 using System.Threading.Tasks;
 using System.IO;
 using UnityEngine.SceneManagement;
+using System.Text;
+using Newtonsoft.Json;
 
 public class ClientNetworkController : MonoBehaviour
 {
@@ -23,6 +25,7 @@ public class ClientNetworkController : MonoBehaviour
     private Queue<Action> _asyncActions;
     // async var for loading scenes
     private AsyncOperation _loadAsyncOperation;
+
     // private bool for isLoadingSceen operation
     private bool _isLoadingSceenOperation;
 
@@ -31,21 +34,38 @@ public class ClientNetworkController : MonoBehaviour
     private Player _player;
     private Player _opponentPlayer;
 
-    // public gameObj
-    public GameObject playerGO;
-
+    // reference to spawned objs
     // gameobject dict controller
     private Dictionary<Guid, PlayerScript> _spawnedPlayers;
-
-    // since unity doesnt allow unity functions been called from other threads
-    private List<Action> _actions;
+    // cutlery in game
+    private GameObject _inGameCutlery;
 
     // vars for connection    
     // IpAddress var
     private IPAddress _IpAdress;
+    private UdpClient _UdpListener;
 
     // ports for connection
-    private int _serverTcpPort = 7701, _serverUdpPort = 7702;
+    private int _serverTcpPort = 7701, _serverUdpPort = 7702,
+        _playerUdpListenPort = 7703;
+
+    // UdpConnection
+    // state of the udp Listener
+    private bool _recievingUdpDatagrams;
+
+    // gamePlayer vars
+    // public references
+    [Header("References to prefabs")]
+    // reference to spawnables gameObjs
+    // public gameObj
+    public GameObject playerGO;
+    // reference to the sprites of the cutlerObj
+    public Sprite[] CutlerySprites;
+
+    [Space(5)]
+    // reference for the cutler Prefab
+    public GameObject CutlerPrefab;
+
 
     // script awake
     private void Awake()
@@ -67,11 +87,15 @@ public class ClientNetworkController : MonoBehaviour
         //set the loadasyncAction to null
         _loadAsyncOperation = null;
 
+        //defining the udp wont recieve data
+        _recievingUdpDatagrams = false;
+
         // setting the players
         // local player
         _player = new Player();
         // opponent player
         _opponentPlayer = new Player();
+        _player.LastPacketStamp = 0;
 
         // setting player to a disconnected state
         _player.GameState = GameState.Disconnected;
@@ -84,15 +108,15 @@ public class ClientNetworkController : MonoBehaviour
     // network update
     private void Update()
     {
+        // after all logic, execut the actions queued by the asyunc method
+        AsyncActionsClear();
+
         // if the player was connecting or trying
         if (_player.GameState != GameState.Disconnected)
         {
             // check server recieved data
             PlayerConnectionLoop();
         }
-
-        // after all logic, execut the actions queued by the asyunc method
-        AsyncActionsClear();
     }
 
     // function that handles the player connection part while connected
@@ -101,7 +125,6 @@ public class ClientNetworkController : MonoBehaviour
         // if the player is connected
         if (_player.TcpClient.Connected)
         {
-            Debug.Log("Player Is connected");
             // switch for the player connection state
             switch (_player.GameState)
             {
@@ -215,6 +238,11 @@ public class ClientNetworkController : MonoBehaviour
                 _player.ClientEndPoint = new IPEndPoint(_IpAdress, _serverUdpPort);
                 // defining the player udp
                 _player.UdpCLient = new UdpClient();
+                //defining the player udpListener
+
+                // defining the udp client for recieving data
+                _UdpListener = new UdpClient();
+
             });
         }
         else
@@ -278,11 +306,117 @@ public class ClientNetworkController : MonoBehaviour
     private void AsyncActionsClear()
     {
         //if exists any queued action 
-        Debug.Log("AsyncActions Queued: " + _asyncActions.Count);
+        Debug.Log(_asyncActions.Count);
+
         while (_asyncActions.Count > 0)
         {
             // execute the oldest action in queue
             _asyncActions.Dequeue()();
+        }
+
+
+    }
+
+    // async callback for reading packets sent using udp
+    private void RecievingDatagramCallback(IAsyncResult asyncResult)
+    {
+        //debug to console
+        _asyncActions.Enqueue(() => Debug.Log("UDP Packet recieved"));
+        //output to text
+        _asyncActions.Enqueue(() =>
+        {
+            _outputText.text = "\n-> Udp packet recieved";
+
+            // if so, start listen for new data
+            if (_recievingUdpDatagrams)
+                _UdpListener.BeginReceive(new AsyncCallback(RecievingDatagramCallback),
+                    _UdpListener);
+        });
+
+        // retriving the client
+        UdpClient client = (UdpClient)asyncResult.AsyncState;
+        // creating the endPoint
+        IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, _playerUdpListenPort);
+
+        //debug to coonsole
+        _asyncActions.Enqueue(() => Debug.Log("Extracting data from the datagram"));
+
+        // save the data
+        byte[] recievedData = client.EndReceive(asyncResult, ref endPoint);
+        //decoding the byte to a string
+        string recievedJsonString = Encoding.ASCII.GetString(recievedData);
+        //save the data as a packet
+        Packet recievedUdpPacket = JsonConvert.DeserializeObject<Packet>(recievedJsonString);
+
+        //debug to log
+        _asyncActions.Enqueue(() => Debug.Log("packet saved from udp connection"));
+
+        //adding action to queue since its a async method
+        _asyncActions.Enqueue(() =>
+        {
+            // debug to console
+            Debug.Log("Starting a new asyncRecieve Call");
+        });
+
+        // treat the reaceved data
+        // if is a packet for player position
+        if (recievedUdpPacket.PacketType == PacketType.PlayerPosition)
+        {
+            // if is a packet of movement
+            // check if the packet is to this player
+            // on udp connection player can only recieve packets for the mov of the other player
+            if (recievedUdpPacket.PlayerGUID == _opponentPlayer.Id)
+            {
+                // check if this is the newer packet
+                if (recievedUdpPacket.GetSendStamp > _player.LastPacketStamp)
+                {
+                    // add to queue
+                    _asyncActions.Enqueue(() =>
+                    {
+                        // if soo, add this packet to list
+                        _player.PlayerPackets.Add(recievedUdpPacket);
+                        // add the stamp
+                        _player.LastPacketStamp = recievedUdpPacket.GetSendStamp;
+
+                        // call method to player the player at the recieved pos
+                        // set transform recieves xand y , and rotation y
+                        _spawnedPlayers[_opponentPlayer.Id].
+                            SetTransform(recievedUdpPacket.PlayerPosition.X,
+                            recievedUdpPacket.PlayerPosition.Y,
+                            recievedUdpPacket.ObjRotation.Y);
+                    });
+
+
+                }
+            }
+        }
+        // if is a packet for obj Update
+        else if (recievedUdpPacket.PacketType == PacketType.SetObjPosition)
+        {
+            // check if the obj is spawned
+            if (_inGameCutlery != null)
+                // confirm if is the latest packet recieved
+                if (recievedUdpPacket.GetSendStamp > _player.LastPacketStamp)
+                {
+                    Debug.Log("Update obj pos");
+                    // add to async queue
+                    _asyncActions.Enqueue(() =>
+                    {
+                        // add this packet to the player packets
+                        _player.PlayerPackets.Add(recievedUdpPacket);
+                        // update the last packet stamp
+                        _player.LastPacketStamp = recievedUdpPacket.GetSendStamp;
+
+                        // update the transform of the obj
+                        _inGameCutlery.transform.position =
+                            new Vector3(recievedUdpPacket.ObjPosition.X,
+                            recievedUdpPacket.ObjPosition.Y, 0f);
+
+                        // update the position
+                        _inGameCutlery.transform.rotation =
+                            new Quaternion(0f, recievedUdpPacket.ObjRotation.Y, 0f, 0f);
+                    });
+                }
         }
     }
     #endregion
@@ -415,6 +549,18 @@ public class ClientNetworkController : MonoBehaviour
                 // show the packet desc
                 _outputText.text += "\n-> " + recievedPacket.Desc;
 
+                //Save the player number 
+                _player.PlayerNumber = recievedPacket.PlayerNumber;
+
+                //define the udp listener on base of player number
+                // with this remove the problems for debug
+                _UdpListener =
+                    new UdpClient(new IPEndPoint(_IpAdress,
+                    _playerUdpListenPort + _player.PlayerNumber));
+
+                //show the player number
+                _outputText.text += "\n-> player Number: " + _player.PlayerNumber;
+
                 // since the registation was succeeded the player will wait for the other player
                 _player.GameState = GameState.WaitPlayer;
 
@@ -461,6 +607,8 @@ public class ClientNetworkController : MonoBehaviour
                 _opponentPlayer.Name = recievedpacket.PlayerName;
                 // save the opponent color
                 _opponentPlayer.PlayerColor = recievedpacket.ObjColor;
+                //saving the opponent player number
+                _opponentPlayer.PlayerNumber = recievedpacket.PlayerNumber;
 
                 // since the opponent data has been stored, 
                 // server will be starting the game soo
@@ -582,6 +730,22 @@ public class ClientNetworkController : MonoBehaviour
     // handler for GameRunning State
     private void GameRunningState()
     {
+        //if the udp is not recieving data from the server
+        if (!_recievingUdpDatagrams)
+        {
+            // debug to console
+            Debug.Log("Starting listen for udp datagrams");
+            //debug to text
+            _outputText.text += "\n-> Stated listen for udp datagrams";
+
+            // since this will run in a internal async loop, not needed to be called again
+            _recievingUdpDatagrams = true;
+            //starting receiving datagrams async
+            _UdpListener.BeginReceive(new AsyncCallback(RecievingDatagramCallback),
+                _UdpListener);
+        }
+
+        // tcp data
         // if player has data available here
         if (_player.DataAvailabe())
         {
@@ -617,7 +781,7 @@ public class ClientNetworkController : MonoBehaviour
                     {
                         //set the spawned player info
                         _spawnedPlayers[_player.Id].OnPlayerSpanw(_player.Id,
-                            _player.Name,
+                            _player.Name, _player.PlayerNumber,
                             _player.PlayerColor, true, this);
 
                         // set the position of the spawned local player
@@ -629,7 +793,8 @@ public class ClientNetworkController : MonoBehaviour
                     {
                         // set the spawned player info
                         _spawnedPlayers[_opponentPlayer.Id].OnPlayerSpanw(_opponentPlayer.Id,
-                            _opponentPlayer.Name, _opponentPlayer.PlayerColor,
+                            _opponentPlayer.Name, _player.PlayerNumber,
+                            _opponentPlayer.PlayerColor,
                             false, this);
 
                         // set the position of the spawned local player
@@ -640,12 +805,29 @@ public class ClientNetworkController : MonoBehaviour
                 }
 
             }
+            // if is as packet for spawn obj
+            else if (recievedPacket.PacketType == PacketType.SpawnObj)
+            {
+                // add the recieved packet to the packet list
+                _player.PlayerPackets.Add(recievedPacket);
+
+                // if is a packet for spawning a obj
+                // instanciate the new obj with the properties recied from the server
+                _inGameCutlery = Instantiate(CutlerPrefab,
+                    new Vector3(recievedPacket.ObjPosition.X, recievedPacket.ObjPosition.Y, 0f),
+                    Quaternion.identity);
+
+                // change the sprite to the value from the server
+                _inGameCutlery.GetComponent<SpriteRenderer>().sprite =
+                    CutlerySprites[recievedPacket.ObjSprite];
+            }
         }
     }
     #endregion
 
+    #region Network Player Actions
 
-    // handler for the static call, updatePositionOnServer
+    // method called by local player to send the new position
     public void SendPlayerPosUdp(float x, float y, float rotY)
     {
         // send the new player position to the server via udp
@@ -681,8 +863,28 @@ public class ClientNetworkController : MonoBehaviour
         _player.PlayerPackets.Add(updatePosPacket);
 
         // debug to text
-        Debug.Log("packet sented using upd");
         _outputText.text += "\n-> Packet sented using udp";
     }
+
+    //method called by local to preform a action
+    public void RequestPlayerAction()
+    {
+        // setting up the packet to send
+        Packet requestActionPacket = new Packet();
+        // setting the packet type
+        requestActionPacket.PacketType = PacketType.PlayerAction;
+
+        // saving the packet on player actions
+        _player.PlayerPackets.Add(requestActionPacket);
+
+        // send to the server
+        _player.SendPacket(requestActionPacket);
+
+        // output to the console and output text
+        Debug.Log("Player action");
+        _outputText.text += "\n-> Player action requested";
+
+    }
+    #endregion
 }
 
