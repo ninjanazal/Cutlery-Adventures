@@ -733,8 +733,6 @@ public class NetworkController : MonoBehaviour
             // if is a action packet, 
             if (recievedPacket.PacketType == PacketType.PlayerAction)
             {
-                // debug to the console
-                Console.Write("Player action Recieved", Color.yellow);
                 // debug to log
                 Debug.Log("Player action recieved");
 
@@ -925,6 +923,75 @@ public class NetworkController : MonoBehaviour
             // sending this packet using udp
             p.SendPacketUdp(updateObjPacket);
         });
+    }
+
+    // method called when a player scores
+    public void PlayerScore(int pNum)
+    {
+        // check what player score
+        foreach (Player _player in _connectedPlayers)
+        {
+            // confirm the player number
+            if (_player.PlayerNumber == pNum)
+            {
+                // ifsoo, add the point to the player
+                _player.AddPlayerScorePoint();
+
+                // build the packet to inform the players about this score
+                Packet informScorePointPacket = new Packet();
+                // packet type
+                informScorePointPacket.PacketType = PacketType.PlayerScore;
+                // add the id of the player that scored
+                informScorePointPacket.PlayerGUID = _player.Id;
+                // add the player score to the packet
+                informScorePointPacket.PlayerScore = _player.PlayerScore;
+
+                // send this to all the player
+                _connectedPlayers.ForEach(player =>
+                {
+                    // save the packet on player packet
+                    player.PlayerPackets.Add(informScorePointPacket);
+
+                    // send the information using tcp
+                    player.SendPacket(informScorePointPacket);
+
+                    // send other packet to reset the player position
+                    Packet resetPlayerPosition = new Packet();
+                    // setting the packet type
+                    resetPlayerPosition.PacketType = PacketType.ResetPlayerPosition;
+
+                    // setting the position
+                    Position position = new Position();
+                    position.X = _startPositions[player.PlayerNumber - 1].position.x;
+                    position.Y = _startPositions[player.PlayerNumber - 1].position.y;
+                    // adding the position to the packet
+                    resetPlayerPosition.PlayerPosition = position;
+
+                    //save the packet to the player packet list
+                    player.PlayerPackets.Add(resetPlayerPosition);
+                    // send the packet
+                    player.SendPacket(resetPlayerPosition);
+
+                    //after the packet about the reset position, inform about the obj
+                    //destruction
+                    // build packet to inform about the obj destruction
+                    Packet objDestructionPacket = new Packet();
+                    // set the packet type
+                    objDestructionPacket.PacketType = PacketType.DestroyObj;
+
+                    //save the packet on the player packet list
+                    player.PlayerPackets.Add(objDestructionPacket);
+                    //send the packet to the client
+                    player.SendPacket(objDestructionPacket);
+                });
+                // when found , break
+                break;
+            }
+        }
+        // destroy the obj on server
+        Destroy(_objInGame);
+        // set the var to null for respawn
+        _objInGame = null;
     }
     #endregion
 }

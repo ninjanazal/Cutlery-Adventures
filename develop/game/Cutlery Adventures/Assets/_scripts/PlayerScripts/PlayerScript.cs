@@ -5,6 +5,7 @@ using UnityEngine;
 using Cutlery.Com;
 using UnityEngine.UI;
 
+
 public class PlayerScript : MonoBehaviour
 {
     // vars inside each spawned player on client
@@ -28,7 +29,8 @@ public class PlayerScript : MonoBehaviour
     public RawImage _playerColorImage;          // player color
     public SpriteRenderer _playerRenderer;      // player sprite renderer
 
-    public GameObject[] _ScoreDisplayers;       // reference to goals objs
+    private Text _ScoreDisplayer;       // reference to goals objs
+    private Text _scoreNameDisplayer;   // reference to the goal player name
 
     // reference to the networkController
     private ClientNetworkController _clientNet;
@@ -65,6 +67,29 @@ public class PlayerScript : MonoBehaviour
         // set the components to the info passed
         _playernameText.text = _playerName;
         _playerColorImage.color = _playerColor;
+
+        // load reference for the player score
+        if (_playerNumber == 1)
+        {
+            // if player is the number 1 player
+            // find and save the reference to the score displayer
+            _ScoreDisplayer = GameObject.Find("Player1 scoreText").GetComponent<Text>();
+            // find and save the reference to the score name displayer
+            _scoreNameDisplayer = GameObject.Find("Player1ScoreName").GetComponent<Text>();
+        }
+        // if is the player 2
+        else if (_playerNumber == 2)
+        {
+            Debug.Log("Player 2 setting goal box");
+            //if player is the number 2 player
+            // find and save the reference to the score displayer
+            _ScoreDisplayer = GameObject.Find("Player2 scoreText").GetComponent<Text>();
+            // find and save the reference to the score name displayer
+            _scoreNameDisplayer = GameObject.Find("Player2ScoreName").GetComponent<Text>();
+        }
+        // set the player name and score
+        _ScoreDisplayer.text = "0";
+        _scoreNameDisplayer.text = _playerName;
 
         // if is not a local , all the positions are controlled from the server
         if (!_isLocal)
@@ -104,7 +129,8 @@ public class PlayerScript : MonoBehaviour
     // func called when the score changes
     public void UpdateScore(int score)
     {
-
+        // change the score count abouve the goal
+        _ScoreDisplayer.text = score.ToString();
     }
     #endregion
 
@@ -123,8 +149,6 @@ public class PlayerScript : MonoBehaviour
             // check if the player moved
             if (playerPos != _oldPosition)
             {
-                // debug  that a new position will be sent
-                Debug.Log("New position");
                 // send new position to the server
                 // call the method to send data over udp
                 _clientNet.SendPlayerPosUdp(playerPos.x,

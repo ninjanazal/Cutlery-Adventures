@@ -242,7 +242,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8633876622704710777}
-  - component: {fileID: 7469222597854098075}
+  - component: {fileID: 5969965023230273116}
   m_Layer: 0
   m_Name: Player1Goal
   m_TagString: Untagged
@@ -264,7 +264,7 @@ Transform:
   m_Father: {fileID: 3173281914502937052}
   m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!61 &7469222597854098075
+--- !u!61 &5969965023230273116
 BoxCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -299,7 +299,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8049027929200301577}
-  - component: {fileID: 8630862737329283697}
+  - component: {fileID: 4209259404737279568}
   m_Layer: 0
   m_Name: Player2Goal
   m_TagString: Untagged
@@ -321,7 +321,7 @@ Transform:
   m_Father: {fileID: 3173281914502937052}
   m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!61 &8630862737329283697
+--- !u!61 &4209259404737279568
 BoxCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

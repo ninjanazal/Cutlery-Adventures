@@ -466,7 +466,7 @@ ScriptsOnlyBuild:
     className: GraphicRaycaster
   - hash:
       serializedVersion: 2
-      Hash: 78ab7ba2e0dac819c0a2323a0d00511b
+      Hash: 05dc908d6a6cc5f888a9a89492f154b5
     assemblyName: Assembly-CSharp.dll
     namespaceName: 
     className: PlayerScript

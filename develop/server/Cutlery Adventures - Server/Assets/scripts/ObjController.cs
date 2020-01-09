@@ -23,7 +23,8 @@ public class ObjController : MonoBehaviour
         if (_oldPosition != currentPos)
         {
             // call method to send the new position
-            _netController.UpdateObjPosition(currentPos.x, currentPos.y, transform.rotation.y);
+            _netController.UpdateObjPosition(currentPos.x, currentPos.y,
+                transform.rotation.eulerAngles.z);
             _oldPosition = currentPos;
         }
 
@@ -32,6 +33,12 @@ public class ObjController : MonoBehaviour
     public void AddForce(Vector2 force)
     {
         // add the passed force to the obj
-        GetComponent<Rigidbody2D>().AddForce(force);
+        GetComponent<Rigidbody2D>().AddRelativeForce(force);
+        GetComponent<Rigidbody2D>().AddForce(Vector2.up * 50);
+        // adding rotation force for more rotation
+        if (force.x > 0)
+            GetComponent<Rigidbody2D>().AddTorque(400f);
+        else
+            GetComponent<Rigidbody2D>().AddTorque(-400f);
     }
 }

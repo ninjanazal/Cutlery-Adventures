@@ -305,13 +305,15 @@ public class ClientNetworkController : MonoBehaviour
     // execute queued asyncAction
     private void AsyncActionsClear()
     {
-        //if exists any queued action 
-        Debug.Log(_asyncActions.Count);
-
+        // run if any async action was queued
         while (_asyncActions.Count > 0)
         {
-            // execute the oldest action in queue
-            _asyncActions.Dequeue()();
+            try
+            {
+                // execute the oldest action in queue
+                _asyncActions.Dequeue()();
+            }
+            catch (Exception ex) { Debug.Log(ex); }
         }
 
 
@@ -320,11 +322,10 @@ public class ClientNetworkController : MonoBehaviour
     // async callback for reading packets sent using udp
     private void RecievingDatagramCallback(IAsyncResult asyncResult)
     {
-        //debug to console
-        _asyncActions.Enqueue(() => Debug.Log("UDP Packet recieved"));
-        //output to text
+        //queue the async results
         _asyncActions.Enqueue(() =>
         {
+            // debug to outPut
             _outputText.text = "\n-> Udp packet recieved";
 
             // if so, start listen for new data
@@ -348,16 +349,6 @@ public class ClientNetworkController : MonoBehaviour
         //save the data as a packet
         Packet recievedUdpPacket = JsonConvert.DeserializeObject<Packet>(recievedJsonString);
 
-        //debug to log
-        _asyncActions.Enqueue(() => Debug.Log("packet saved from udp connection"));
-
-        //adding action to queue since its a async method
-        _asyncActions.Enqueue(() =>
-        {
-            // debug to console
-            Debug.Log("Starting a new asyncRecieve Call");
-        });
-
         // treat the reaceved data
         // if is a packet for player position
         if (recievedUdpPacket.PacketType == PacketType.PlayerPosition)
@@ -365,7 +356,8 @@ public class ClientNetworkController : MonoBehaviour
             // if is a packet of movement
             // check if the packet is to this player
             // on udp connection player can only recieve packets for the mov of the other player
-            if (recievedUdpPacket.PlayerGUID == _opponentPlayer.Id)
+            // this check for all the players connected because the udp packet can reatch the client before the tcp one
+            if (recievedUdpPacket.PlayerGUID == _opponentPlayer.Id && _spawnedPlayers.ContainsKey(_opponentPlayer.Id))
             {
                 // check if this is the newer packet
                 if (recievedUdpPacket.GetSendStamp > _player.LastPacketStamp)
@@ -398,7 +390,6 @@ public class ClientNetworkController : MonoBehaviour
                 // confirm if is the latest packet recieved
                 if (recievedUdpPacket.GetSendStamp > _player.LastPacketStamp)
                 {
-                    Debug.Log("Update obj pos");
                     // add to async queue
                     _asyncActions.Enqueue(() =>
                     {
@@ -413,8 +404,10 @@ public class ClientNetworkController : MonoBehaviour
                             recievedUdpPacket.ObjPosition.Y, 0f);
 
                         // update the position
+                        Debug.Log(recievedUdpPacket.ObjRotation.Y);
                         _inGameCutlery.transform.rotation =
-                            new Quaternion(0f, recievedUdpPacket.ObjRotation.Y, 0f, 0f);
+                        Quaternion.Euler(0f, 0f, recievedUdpPacket.ObjRotation.Y);
+
                     });
                 }
         }
@@ -722,7 +715,6 @@ public class ClientNetworkController : MonoBehaviour
                 _spawnedPlayers = new Dictionary<Guid, PlayerScript>(2);
 
                 // start reading packets from the udp connection
-                // TODO
             }
         }
     }
@@ -793,7 +785,7 @@ public class ClientNetworkController : MonoBehaviour
                     {
                         // set the spawned player info
                         _spawnedPlayers[_opponentPlayer.Id].OnPlayerSpanw(_opponentPlayer.Id,
-                            _opponentPlayer.Name, _player.PlayerNumber,
+                            _opponentPlayer.Name, _opponentPlayer.PlayerNumber,
                             _opponentPlayer.PlayerColor,
                             false, this);
 
@@ -821,18 +813,65 @@ public class ClientNetworkController : MonoBehaviour
                 _inGameCutlery.GetComponent<SpriteRenderer>().sprite =
                     CutlerySprites[recievedPacket.ObjSprite];
             }
+            // if is as player socre packet
+            else if (recievedPacket.PacketType == PacketType.PlayerScore)
+            {
+                // check the id of the player who scored
+                if (recievedPacket.PlayerGUID == _player.Id)
+                {
+                    // save the packet
+                    _player.PlayerPackets.Add(recievedPacket);
+                    // save the socre localy
+                    _player.AddPlayerScorePoint();
+                    // update the score to the player displayer
+                    _spawnedPlayers[_player.Id].UpdateScore(_player.PlayerScore);
+                }
+                else if (recievedPacket.PlayerGUID == _opponentPlayer.Id)
+                {
+                    // save the packet to the packet list
+                    _opponentPlayer.PlayerPackets.Add(recievedPacket);
+                    // save the score localy
+                    _opponentPlayer.AddPlayerScorePoint();
+                    // update the score to the player displayer
+                    _spawnedPlayers[_opponentPlayer.Id].
+                        UpdateScore(_opponentPlayer.PlayerScore);
+                }
+            }
+            // if is a reset player position 
+            else if (recievedPacket.PacketType == PacketType.ResetPlayerPosition)
+            {
+                //  if the packet is a reset position
+                // saven the packet to the player packet list
+                _player.PlayerPackets.Add(recievedPacket);
+
+                // set the player to te reset position
+                // setting the position
+                Vector3 playerNewPosition =
+                    new Vector3(recievedPacket.PlayerPosition.X,
+                    recievedPacket.PlayerPosition.Y, 0f);
+                // set the position to the new one
+                _spawnedPlayers[_player.Id].transform.position = playerNewPosition;
+            }
+            // if a detroy obj packet
+            else if (recievedPacket.PacketType == PacketType.DestroyObj)
+            {
+                // if is a packet to destroy the obj
+                //save the packet to the packet player list
+                _player.PlayerPackets.Add(recievedPacket);
+            }
+
         }
     }
     #endregion
 
     #region Network Player Actions
 
+
     // method called by local player to send the new position
     public void SendPlayerPosUdp(float x, float y, float rotY)
     {
         // send the new player position to the server via udp
         // debug
-        Debug.Log("Sending a new player pos, using udp");
         _outputText.text = "-> Sending player position using Udp";
 
         // setting the packet to send
@@ -886,5 +925,7 @@ public class ClientNetworkController : MonoBehaviour
 
     }
     #endregion
+
+
 }
 
