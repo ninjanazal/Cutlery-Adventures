@@ -3,10 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Threading.Tasks;
 
 public class Console : MonoBehaviour
 {
-    private static Queue<String> _consoleLines;
+    public static Queue<String> _consoleLines;
     private Canvas _consoleCanvas;
     private static Text _consoleText;
 
@@ -20,30 +21,42 @@ public class Console : MonoBehaviour
         _consoleLines = new Queue<string>();
 
         // clean console on start
-        _consoleLines.Enqueue("");
+        _consoleLines.Clear();
 
+        // call the method to calculate the text bounds
         CalculateConsoleBounds();
-        UpdateConsole();
+
+        // start async task for output to console text
+        Task cleanerLines = ConsoleLineCleaner();
+
+    }
+
+    private void Update()
+    {
+        _consoleText.text = string.Concat(_consoleLines.ToArray());
     }
 
     #region private
-    //private functions
-    private static void UpdateConsole()
+
+    // async task for line number controll
+    private async Task<bool> ConsoleLineCleaner()
     {
-        // update text on Console
-        _consoleText.text = string.Concat(_consoleLines.ToArray());
-        // force canvas update for results on the current frame
-        Canvas.ForceUpdateCanvases();
-
-        // if the numbers of lines is bigger then the lines that can be displayed
-        // dequeue the oldest entry
-
-        while (_consoleText.cachedTextGenerator.lineCount > _maxVisibleLines)
+        // runs all the time
+        while (true)
         {
-            _consoleLines.Dequeue();
-            Canvas.ForceUpdateCanvases();
+            // if the numbers of lines is bigger then the lines that can be displayed
+            // dequeue the oldest entry        
+            while (_consoleLines.Count > _maxVisibleLines)
+            {
+                // dequeue the oldest line
+                _consoleLines.Dequeue();
+
+            }
+            await Task.Delay(250);
+            // runs the loop 1 time per x ms
         }
     }
+
 
     private void CalculateConsoleBounds()
     {
@@ -73,8 +86,6 @@ public class Console : MonoBehaviour
     {
         // line to add to console
         _consoleLines.Enqueue($"{DateTime.Now.Ticks.ToString()}: {msg}\n");
-        // update console only if new line was added
-        UpdateConsole();
     }
 
     /// <summary>
@@ -89,7 +100,6 @@ public class Console : MonoBehaviour
         // to use color on a line need to add <color="hexCode">msg</color>
         _consoleLines.Enqueue($"<color=#{_hexColor}>{DateTime.Now.Ticks.ToString()}" +
             $": {msg}</color>\n");
-        UpdateConsole();
     }
 
     /// <summary>
@@ -98,7 +108,7 @@ public class Console : MonoBehaviour
     public static void Clear()
     {
         _consoleLines.Clear();
-        UpdateConsole();
     }
     #endregion
+
 }

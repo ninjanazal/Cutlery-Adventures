@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
+using System.Text;
 
 namespace Cutlery.Com
 {
@@ -18,32 +19,28 @@ namespace Cutlery.Com
         public Guid Id { get; set; }                // unique player id
         public GameState GameState { get; set; }    // player state
         public string Name { get; set; }            // player name
-        public Color PlayerColor { get; set; }      // player color
+        public CutleryColor PlayerColor { get; set; }      // player color
         public Position PlayerPos { get; set; }     // player position
         public int PlayerScore { get; private set; }    // player score (read only var)
+
+        public int PlayerNumber { get; set; }       // playerNumer
 
         // connection data
         public List<Packet> PlayerPackets { get; set; } //packets sented/recieved 
 
         //TCP connection
-        public TcpClient TcpClient
-        {
-            get => TcpClient;
-            set
-            {
-                TcpClient = value;
-                SetPlayerEndPoint();    // define endPoint
-                SetReaderWriter();    // define reader and writer from tcp
-            }
-        }               //client Tcp
+        //client Tcp
+        public TcpClient TcpClient { get; set; }
 
         // binary reader (read only var)
-        public BinaryWriter PlayerWriter { get; private set; }
+        public BinaryWriter PlayerWriter { get; set; }
         // binary writer (read only var)
-        public BinaryReader PlayerReader { get; private set; }
+        public BinaryReader PlayerReader { get; set; }
 
         // UDP connection
-        public EndPoint ClientEndPoint { get; set; }    // client EndPoint
+        public UdpClient UdpCLient { get; set; }        //Udp Client
+        public IPEndPoint ClientEndPoint { get; set; }    // client EndPoint
+        public long LastPacketStamp { get; set; }          // id of the last recieved packet
 
 
         // player const
@@ -59,6 +56,7 @@ namespace Cutlery.Com
 
 
         //publc funcs
+        // tcp funcs
         /// <summary>
         /// Function serialize data on opened connection Stream
         /// </summary>
@@ -80,7 +78,29 @@ namespace Cutlery.Com
             // read string from the opend stream
             string jsonPacket = PlayerReader.ReadString();
             //convert the string to a packet through json deserialization
-            return (Packet)JsonConvert.DeserializeObject(jsonPacket, _jsonSettings);
+            return JsonConvert.DeserializeObject<Packet>(jsonPacket, _jsonSettings);
+        }
+
+        // udpFuncs
+        //sendPacket
+        public void SendPacketUdp(Packet packet)
+        {
+            // set the stamp of time on the packet
+            packet.GetSendStamp = DateTime.Now.Ticks;
+            // creats a string with the packet information
+            string jsonPacket = JsonConvert.SerializeObject(packet, _jsonSettings);
+            // encod the string msg to a byte array
+            Byte[] jsonPacketBytes = Encoding.ASCII.GetBytes(jsonPacket);
+            // send the bytes array to the udpClient endpoint
+            UdpCLient.Send(jsonPacketBytes, jsonPacketBytes.Length, ClientEndPoint);
+        }
+        // read udpBytes
+        public Packet ReadUdpBytes(Byte[] datagram)
+        {
+            // decoding the byte array to a string
+            string recievedJsonstring = Encoding.ASCII.GetString(datagram);
+            //returning the decoded string as a packet
+            return JsonConvert.DeserializeObject<Packet>(recievedJsonstring);
         }
 
         // regist score point
@@ -98,17 +118,5 @@ namespace Cutlery.Com
         public void CloseConnection() { TcpClient.Close(); }
 
 
-        // private funcs
-        // set the player endPoint from TcpClient provided
-        private void SetPlayerEndPoint() => ClientEndPoint = TcpClient.Client.RemoteEndPoint;
-        // set the binary reader and writer for the player 
-        private void SetReaderWriter()
-        {
-            // reader
-            PlayerReader = new BinaryReader(TcpClient.GetStream());
-            //writer
-            PlayerWriter = new BinaryWriter(TcpClient.GetStream());
-
-        }
     }
 }

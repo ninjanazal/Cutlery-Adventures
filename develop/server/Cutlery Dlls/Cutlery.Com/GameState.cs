@@ -5,6 +5,6 @@
     {
         Disconnected, Connecting, Connected, Sync,  // Setting the player to the server
         WaitPlayer, WaitingStart, CountDown,        // Setting payler on all others
-        GameStarted, GameEnded                      // match started
+        GameStarted, GameRunning, GameEnded                      // match started
     }
 }
