@@ -32,6 +32,9 @@ public class PlayerScript : MonoBehaviour
     private Text _ScoreDisplayer;       // reference to goals objs
     private Text _scoreNameDisplayer;   // reference to the goal player name
 
+    // reference to the endScreen Obj
+    private EndGameScreenController _endScreenController;
+
     // reference to the networkController
     private ClientNetworkController _clientNet;
 
@@ -101,6 +104,7 @@ public class PlayerScript : MonoBehaviour
             // change the transparency of the nonLocal player
             _playerRenderer.color = new Color(_playerRenderer.color.r,
                 _playerRenderer.color.g, _playerRenderer.color.b, 0.5f) * _playerColor;
+
         }
         else
         {
@@ -110,6 +114,9 @@ public class PlayerScript : MonoBehaviour
             _oldPosition = _playerTransform.position;
             // setting the jump state
             _lateJumpState = 0;
+            // get the reference to the endGameScreenController
+            _endScreenController = GameObject.Find("EndGameScreen").GetComponent<EndGameScreenController>();
+
         }
     }
 
@@ -134,7 +141,8 @@ public class PlayerScript : MonoBehaviour
     }
     #endregion
 
-
+    // method called when a player wins
+    public void PlayerWonCall(string winnerName) => _endScreenController.DisplayerEndScreen(winnerName);
     private void Update()
     {
         // check if the position is diferent from the old one

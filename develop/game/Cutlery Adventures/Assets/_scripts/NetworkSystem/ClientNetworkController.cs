@@ -109,7 +109,8 @@ public class ClientNetworkController : MonoBehaviour
     private void Update()
     {
         // after all logic, execut the actions queued by the asyunc method
-        AsyncActionsClear();
+        if (_asyncActions.Count > 0)
+            AsyncActionsClear();
 
         // if the player was connecting or trying
         if (_player.GameState != GameState.Disconnected)
@@ -305,6 +306,7 @@ public class ClientNetworkController : MonoBehaviour
     // execute queued asyncAction
     private void AsyncActionsClear()
     {
+        Debug.Log(_asyncActions.Count);
         // run if any async action was queued
         while (_asyncActions.Count > 0)
         {
@@ -323,24 +325,15 @@ public class ClientNetworkController : MonoBehaviour
     private void RecievingDatagramCallback(IAsyncResult asyncResult)
     {
         //queue the async results
-        _asyncActions.Enqueue(() =>
-        {
-            // debug to outPut
-            _outputText.text = "\n-> Udp packet recieved";
-
-            // if so, start listen for new data
-            if (_recievingUdpDatagrams)
-                _UdpListener.BeginReceive(new AsyncCallback(RecievingDatagramCallback),
-                    _UdpListener);
-        });
+        // if so, start listen for new data
+        if (_recievingUdpDatagrams)
+            _UdpListener.BeginReceive(new AsyncCallback(RecievingDatagramCallback),
+                _UdpListener);
 
         // retriving the client
         UdpClient client = (UdpClient)asyncResult.AsyncState;
         // creating the endPoint
         IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, _playerUdpListenPort);
-
-        //debug to coonsole
-        _asyncActions.Enqueue(() => Debug.Log("Extracting data from the datagram"));
 
         // save the data
         byte[] recievedData = client.EndReceive(asyncResult, ref endPoint);
@@ -851,6 +844,9 @@ public class ClientNetworkController : MonoBehaviour
                     recievedPacket.PlayerPosition.Y, 0f);
                 // set the position to the new one
                 _spawnedPlayers[_player.Id].transform.position = playerNewPosition;
+
+                // set this as the newest position packet
+                _player.LastPacketStamp = recievedPacket.GetSendStamp;
             }
             // if a detroy obj packet
             else if (recievedPacket.PacketType == PacketType.DestroyObj)
@@ -863,50 +859,104 @@ public class ClientNetworkController : MonoBehaviour
                 // set the var to null
                 _inGameCutlery = null;
             }
+            // if is a Game end packet
+            else if (recievedPacket.PacketType == PacketType.GameEnd)
+            {
+                // if client recieved a end game packet, means that a player wont the game
+                // save the recieved packet
+                _player.PlayerPackets.Add(recievedPacket);
+                // get the winner player name
+                if (recievedPacket.PlayerGUID == _player.Id)
+                {
+                    // call the method that handles the won screen
+                    _spawnedPlayers[_player.Id].PlayerWonCall(_player.Name);
+                }
+                else if (recievedPacket.PlayerGUID == _opponentPlayer.Id)
+                {
+                    _spawnedPlayers[_player.Id].PlayerWonCall(_opponentPlayer.Name);
+                }
+
+                // reset player vars
+                ClearPlayerConnection();
+            }
 
         }
+    }
+
+    // method to clear the player on the previous connection
+    private void ClearPlayerConnection()
+    {
+
+        // close connection to the server
+        _player.CloseConnection();
+        _UdpListener.Close();
+
+        Destroy(this.gameObject);
+
+        // set the _isloadingOperation to false
+        _isLoadingSceenOperation = false;
+        //set the loadasyncAction to null
+        _loadAsyncOperation = null;
+
+        //defining the udp wont recieve data
+        _recievingUdpDatagrams = false;
+
+        // setting the players
+        // local player
+        _player = new Player();
+        // opponent player
+        _opponentPlayer = new Player();
+        _player.LastPacketStamp = 0;
+
+        // reseting the async actions
+        _asyncActions = new Queue<Action>();
+
+        // setting player to a disconnected state
+        _player.GameState = GameState.Disconnected;
+
     }
     #endregion
 
     #region Network Player Actions
-
-
     // method called by local player to send the new position
     public void SendPlayerPosUdp(float x, float y, float rotY)
     {
-        // send the new player position to the server via udp
-        // debug
-        _outputText.text = "-> Sending player position using Udp";
+        if (_recievingUdpDatagrams)
+        {
+            // send the new player position to the server via udp
+            // debug
+            _outputText.text = "-> Sending player position using Udp";
 
-        // setting the packet to send
-        Packet updatePosPacket = new Packet();
-        // set the packet type to player position
-        updatePosPacket.PacketType = PacketType.PlayerPosition;
+            // setting the packet to send
+            Packet updatePosPacket = new Packet();
+            // set the packet type to player position
+            updatePosPacket.PacketType = PacketType.PlayerPosition;
 
-        // seting the new values on packet information
-        Position pos = new Position();
-        pos.X = x;
-        pos.Y = y;
-        //adding to the packet
-        updatePosPacket.PlayerPosition = pos;
+            // seting the new values on packet information
+            Position pos = new Position();
+            pos.X = x;
+            pos.Y = y;
+            //adding to the packet
+            updatePosPacket.PlayerPosition = pos;
 
-        //setting the values for player rotation
-        Rotation rot = new Rotation(0f, rotY, 0f);
-        // add the rotation to the packet
-        updatePosPacket.ObjRotation = rot;
+            //setting the values for player rotation
+            Rotation rot = new Rotation(0f, rotY, 0f);
+            // add the rotation to the packet
+            updatePosPacket.ObjRotation = rot;
 
-        // adding the player id to the packet, its allways the local player since this method will only be called
-        // if is local
-        updatePosPacket.PlayerGUID = _player.Id;
+            // adding the player id to the packet, its allways the local player since this method will only be called
+            // if is local
+            updatePosPacket.PlayerGUID = _player.Id;
 
-        // send packet using upd
-        _player.SendPacketUdp(updatePosPacket);
+            // send packet using upd
+            _player.SendPacketUdp(updatePosPacket);
 
-        // adding packet to player packetlist
-        _player.PlayerPackets.Add(updatePosPacket);
+            // adding packet to player packetlist
+            _player.PlayerPackets.Add(updatePosPacket);
 
-        // debug to text
-        _outputText.text += "\n-> Packet sented using udp";
+            // debug to text
+            _outputText.text += "\n-> Packet sented using udp";
+        }
     }
 
     //method called by local to preform a action

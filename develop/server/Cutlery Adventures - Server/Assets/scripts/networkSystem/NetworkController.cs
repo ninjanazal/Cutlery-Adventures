@@ -45,7 +45,8 @@ public class NetworkController : MonoBehaviour
     [Header("Spawnable prefabs")]
     // map 
     // map gameObj
-    public GameObject _selectedMap;
+    public GameObject _selectedMapPrefab;
+    private GameObject _spawnedMap;
     // start positions
     private Transform[] _startPositions;
 
@@ -108,10 +109,6 @@ public class NetworkController : MonoBehaviour
     //server unity Update
     private void Update()
     {
-        // after all logic, resolve the actions queue
-        if (_asyncActions.Count > 0)
-            StartCoroutine(AsyncActionsClear());
-
         // internal loop for acepting players
         // listen for new players , looking for pending connections
         if (_tcpListener.Pending())
@@ -127,6 +124,11 @@ public class NetworkController : MonoBehaviour
         // if server is running a match
         else if (_serverState == ServerState.ServerMatchRunning)
             MatchRunningStateResolver();                    // call resolver for match running state
+
+
+        // after all logic, resolve the actions queue
+        if (_asyncActions.Count > 0)
+            AsyncActionsClear();
     }
 
     #region ServerStates
@@ -437,12 +439,9 @@ public class NetworkController : MonoBehaviour
         Packet recievedUdpPacket = JsonConvert.DeserializeObject<Packet>(recievedJsonString);
 
         // since this is a async method we need to queue action to the main thread
-        _asyncActions.Enqueue(() =>
-        {
             // before treat the recieve packet, start recieving packets again if _recieving updadatagrams is true
             if (_recievingUpdDatagrams)
                 _udpListener.BeginReceive(new AsyncCallback(RecievingDatagramCallback), _udpListener);
-        });
 
         // treating the data
         if (recievedUdpPacket.PacketType == PacketType.PlayerPosition)
@@ -487,7 +486,6 @@ public class NetworkController : MonoBehaviour
 
                             }
                         }
-                        Debug.Log("Position Recieved and sented to the other");
                     }
                 }
             }
@@ -495,20 +493,16 @@ public class NetworkController : MonoBehaviour
     }
 
     // execute asyncMethods
-    private IEnumerator AsyncActionsClear()
+    private void AsyncActionsClear()
     {
+        Debug.Log(_asyncActions.Count);
         // if exists any queued action queued
         // lock the var for execut
-        lock (_asyncActions)
+        while (_asyncActions.Count > 0)
         {
-            while (_asyncActions.Count > 0)
-            {
-                // execute the oldest action
-                _asyncActions.Dequeue()();
-            }
-            yield return null;
+            // execute the oldest action
+            _asyncActions.Dequeue()();
         }
-
     }
 
     // this is needed because the way that unity handles with diferent threads
@@ -793,7 +787,7 @@ public class NetworkController : MonoBehaviour
         Console.Write("Spawning map on server");
         // set map vars on server side                
         // set the map on server side
-        _selectedMap = Instantiate(_selectedMap);
+        _spawnedMap = Instantiate(_selectedMapPrefab);
 
         // load the start positions
         _startPositions = new Transform[2];
@@ -888,6 +882,34 @@ public class NetworkController : MonoBehaviour
                 p.SendPacket(spawnObjPacket);
             });
         }
+
+    }
+
+    // internal method for reset the server for a new match
+    private void ResetServer()
+    {
+        // clear the console
+        Console.Clear();
+        // destroy the selected map
+        Destroy(_spawnedMap);
+
+        // start a new "clean" server
+        // defining that udp wont recieve data
+        _recievingUpdDatagrams = false;
+        // seting the is match runing to false
+        _isMatchRunning = false;
+
+        // start list of asyncActions
+        _asyncActions = new Queue<Action>();
+        // start Connected Player array
+        _connectedPlayers = new List<Player>();
+
+        //server Loop 
+        //async method, not using unity update cycle
+        Debug.Log("Server started");
+        Console.Write("-> Server Started!", Color.magenta);
+        // set the server state to ServerWaitingPlayers
+        _serverState = ServerState.ServerWaitingPlayers;
     }
 
     #endregion
@@ -912,8 +934,6 @@ public class NetworkController : MonoBehaviour
         //adding the rot to the packet
         updateObjPacket.ObjRotation = rot;
 
-        // debug on console
-        Debug.Log("Updating obj pos");
 
         // send this packet to all the players
         _connectedPlayers.ForEach(p =>
@@ -928,6 +948,9 @@ public class NetworkController : MonoBehaviour
     // method called when a player scores
     public void PlayerScore(int pNum)
     {
+        // set the var to null for respawn
+        _objInGame = null;
+
         // check what player score
         foreach (Player _player in _connectedPlayers)
         {
@@ -967,6 +990,9 @@ public class NetworkController : MonoBehaviour
                     // adding the position to the packet
                     resetPlayerPosition.PlayerPosition = position;
 
+                    // set the stamp for this set
+                    resetPlayerPosition.GetSendStamp = DateTime.Now.Ticks;
+
                     //save the packet to the player packet list
                     player.PlayerPackets.Add(resetPlayerPosition);
                     // send the packet
@@ -985,13 +1011,36 @@ public class NetworkController : MonoBehaviour
                     player.SendPacket(objDestructionPacket);
                 });
                 // when found , break
-                break;
+
+                // check if this player won the game
+                // set that the player wins if scores 10 points first
+                if (_player.PlayerScore == 5)
+                {
+                    // if soo this player won the game
+                    // set the packet informing that this player won the game
+                    Packet winInformation = new Packet();
+                    // set the packet type
+                    winInformation.PacketType = PacketType.GameEnd;
+                    // add the winner id
+                    winInformation.PlayerGUID = _player.Id;
+
+                    // send this information to all the players
+                    _connectedPlayers.ForEach(p =>
+                    {
+                        // storing packet on player packets
+                        p.PlayerPackets.Add(winInformation);
+                        // sending the packet
+                        p.SendPacket(winInformation);
+
+                        // close the connection with the player
+                        p.CloseConnection();
+                    });
+
+                    // reset the server for a new match
+                    ResetServer();
+                }
             }
         }
-        // destroy the obj on server
-        Destroy(_objInGame);
-        // set the var to null for respawn
-        _objInGame = null;
     }
     #endregion
 }

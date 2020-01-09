@@ -27,8 +27,8 @@ public class GoalBoxController : MonoBehaviour
         // check if is the cutlery obj
         if (collision.tag.Contains("Cutlery"))
         {
-            // debug
-            Debug.Log("Cutlery on goal " + _playerNum);
+            // destroy the obj
+            Destroy(collision.gameObject);
             // if so, the obj is in the player goal
             _netController.PlayerScore(_playerNum);
         }

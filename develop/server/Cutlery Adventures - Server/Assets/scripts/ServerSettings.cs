@@ -5,7 +5,7 @@ using UnityEngine;
 public class ServerSettings : MonoBehaviour
 {
     // target serser tickRate
-    public int _targetTickRate = 32;
+    public int _targetTickRate = 0;
 
     // networkController
     private NetworkController _networkController;
@@ -20,8 +20,9 @@ public class ServerSettings : MonoBehaviour
         _checKThreadBlock = GameObject.Find("checkThreadBlock").
             GetComponent<RectTransform>();
 
-        //setting the target rate
-        TargetTickRate = _targetTickRate;
+        QualitySettings.vSyncCount = 0;
+        // set the target rate
+        Application.targetFrameRate = _targetTickRate;
 
         // start network Controller
         _networkController = GetComponent<NetworkController>();
@@ -33,20 +34,6 @@ public class ServerSettings : MonoBehaviour
         // rotate the image, if jumps is because the thread was blocked
         _checKThreadBlock.Rotate(new Vector3(0f, 0f, -40f) * Time.deltaTime);
     }
-    //if server tick is changed, the tick rate is updated
-    public int TargetTickRate
-    {
-        get => _targetTickRate;
-        set
-        {
-            _targetTickRate = value;
-            // Disable vSync on server
-            QualitySettings.vSyncCount = 0;
-            // set the target rate
-            Application.targetFrameRate = _targetTickRate;
-            Console.Write("Server TRate= " + Application.targetFrameRate);
-        }
-
-    }
+ 
 }
 
