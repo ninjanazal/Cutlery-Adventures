@@ -357,7 +357,8 @@ public class ClientNetworkController : MonoBehaviour
             // check if the packet is to this player
             // on udp connection player can only recieve packets for the mov of the other player
             // this check for all the players connected because the udp packet can reatch the client before the tcp one
-            if (recievedUdpPacket.PlayerGUID == _opponentPlayer.Id && _spawnedPlayers.ContainsKey(_opponentPlayer.Id))
+            if (recievedUdpPacket.PlayerGUID == _opponentPlayer.Id &&
+                _spawnedPlayers.ContainsKey(_opponentPlayer.Id))
             {
                 // check if this is the newer packet
                 if (recievedUdpPacket.GetSendStamp > _player.LastPacketStamp)
@@ -404,7 +405,6 @@ public class ClientNetworkController : MonoBehaviour
                             recievedUdpPacket.ObjPosition.Y, 0f);
 
                         // update the position
-                        Debug.Log(recievedUdpPacket.ObjRotation.Y);
                         _inGameCutlery.transform.rotation =
                         Quaternion.Euler(0f, 0f, recievedUdpPacket.ObjRotation.Y);
 
@@ -829,7 +829,7 @@ public class ClientNetworkController : MonoBehaviour
                 else if (recievedPacket.PlayerGUID == _opponentPlayer.Id)
                 {
                     // save the packet to the packet list
-                    _opponentPlayer.PlayerPackets.Add(recievedPacket);
+                    _player.PlayerPackets.Add(recievedPacket);
                     // save the score localy
                     _opponentPlayer.AddPlayerScorePoint();
                     // update the score to the player displayer
@@ -858,6 +858,10 @@ public class ClientNetworkController : MonoBehaviour
                 // if is a packet to destroy the obj
                 //save the packet to the packet player list
                 _player.PlayerPackets.Add(recievedPacket);
+                //destroy obj in game
+                Destroy(_inGameCutlery);
+                // set the var to null
+                _inGameCutlery = null;
             }
 
         }

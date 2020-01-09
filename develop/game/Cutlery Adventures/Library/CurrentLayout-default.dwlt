@@ -100,7 +100,7 @@ MonoBehaviour:
   m_MinSize: {x: 204, y: 344}
   m_MaxSize: {x: 4004, y: 8044}
   vertical: 1
-  controlID: 94
+  controlID: 116
 --- !u!114 &5
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -180,7 +180,7 @@ MonoBehaviour:
   m_MinSize: {x: 917, y: 344}
   m_MaxSize: {x: 22012, y: 10022}
   vertical: 0
-  controlID: 55
+  controlID: 33
 --- !u!114 &8
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -719,20 +719,20 @@ MonoBehaviour:
     m_ExpandedIDs: ffffffff00000000f82c00003c2d0000ec2d0000f22d00000a2e0000222e0000662e0000802e0000ae2e0000c42e0000d42e0000f82e0000822f0000a02f0000a62f000036320000383200003a3200003c320000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
-      m_Name: 
-      m_OriginalName: 
+      m_Name: PlayerScript
+      m_OriginalName: PlayerScript
       m_EditFieldRect:
         serializedVersion: 2
         x: 0
         y: 0
         width: 0
         height: 0
-      m_UserData: 0
+      m_UserData: 11078
       m_IsWaitingForDelay: 0
       m_IsRenaming: 0
-      m_OriginalEventType: 11
+      m_OriginalEventType: 0
       m_IsRenamingFilename: 1
-      m_ClientGUIView: {fileID: 0}
+      m_ClientGUIView: {fileID: 2}
     m_SearchString: 
     m_CreateAssetUtility:
       m_EndAction: {fileID: 0}
@@ -839,9 +839,9 @@ MonoBehaviour:
   m_SceneHierarchy:
     m_TreeViewState:
       scrollPos: {x: 0, y: 0}
-      m_SelectedIDs: 
+      m_SelectedIDs: 9c2d0000
       m_LastClickedID: 0
-      m_ExpandedIDs: c4cefffff6ceffff86cfffff8acfffff02d3ffff34d3ffffc4d3ffffc8d3fffffcd4ffffccd5fffffed5ffff8ed6ffff92d6ffff3ed8ffff0cd9ffff3cd9ffffccd9ffffd0d9ffff44dbffff74dbffff04dcffff08dcffff38ddfffffcddffff2cdeffffbcdeffffc0deffff9ee0ffffcee0ffff5ee1ffff62e1ffffe2e2ffff12e3ffffa2e3ffffa6e3ffff0ce6ffff3ce6ffffcce6ffffd0e6ffffa8e8ffffd8e8ffff68e9ffff6ce9ffff8eebffff5eecffff92ecffff26edffff2eedffff84edffff52efffff5af1ffff8af1ffff1ef2ffff26f2ffff84f2ffffdef9ffff76fbfffff4ffffffec320000f2320000123300001a330000443300001a3c0000
+      m_ExpandedIDs: cae5ffff06e6ffff48e8ffff78e8ffff08e9ffff0ce9ffffc0eafffff2eaffff82ebffff86ebffff66edffff96edffff26eeffff2aeeffffaeefffffdeefffff6ef0ffff72f0fffffcf1ffff2cf2ffffbcf2ffffc0f2ffff40f4ffff74f4ffff08f5ffff10f5ffff3cf7ffff70f7ffff04f8ffff0cf8fffff6f9ffff26faffffb6faffffbafaffff76fbfffff4ffffff
       m_RenameOverlay:
         m_UserAcceptedRename: 0
         m_Name: 
@@ -1024,7 +1024,7 @@ MonoBehaviour:
       y: 17
       width: 935
       height: 602
-    m_Scale: {x: 1, y: 1}
+    m_Scale: {x: 1.0703701, y: 1.0703701}
     m_Translation: {x: 467.5, y: 301}
     m_MarginLeft: 0
     m_MarginRight: 0
@@ -1032,10 +1032,10 @@ MonoBehaviour:
     m_MarginBottom: 0
     m_LastShownAreaInsideMargins:
       serializedVersion: 2
-      x: -467.5
-      y: -301
-      width: 935
-      height: 602
+      x: -436.76483
+      y: -281.21115
+      width: 873.52966
+      height: 562.4223
     m_MinimalGUI: 1
   m_defaultScale: 1
   m_TargetTexture: {fileID: 0}
