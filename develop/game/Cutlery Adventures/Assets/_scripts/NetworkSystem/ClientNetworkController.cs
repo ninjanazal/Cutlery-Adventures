@@ -789,7 +789,7 @@ public class ClientNetworkController : MonoBehaviour
                             recievedPacket.PlayerPosition.X, recievedPacket.PlayerPosition.Y, 0f);
                     }
                     // if not, then the spawned player is the opponent
-                    else
+                    else if (recievedPacket.PlayerGUID == _opponentPlayer.Id)
                     {
                         // set the spawned player info
                         _spawnedPlayers[_opponentPlayer.Id].OnPlayerSpanw(_opponentPlayer.Id,

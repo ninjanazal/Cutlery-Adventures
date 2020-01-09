@@ -422,8 +422,6 @@ public class NetworkController : MonoBehaviour
     // async callback for reading packets sent using udp
     private void RecievingDatagramCallback(IAsyncResult asyncResult)
     {
-        Debug.Log("recieved Data");
-
         // retriving the udpClient
         UdpClient client = (UdpClient)asyncResult.AsyncState;
         // creating the IpEndpoint
@@ -456,16 +454,10 @@ public class NetworkController : MonoBehaviour
                 // confirm the id
                 if (recievedUdpPacket.PlayerGUID == player.Id)
                 {
-                    // debug to console
-                    _asyncActions.Enqueue(()
-                        => Console.Write($"{player.Name} sent a UpdPacket", Color.magenta));
-
                     // confim if this packet is newer
                     if (recievedUdpPacket.GetSendStamp > player.LastPacketStamp)
                     {
                         //debug that is a valid packet
-                        _asyncActions.Enqueue(()
-                            => Console.Write("Valid packet", Color.green));
 
                         // saving the recieved packet stamp
                         player.LastPacketStamp = recievedUdpPacket.GetSendStamp;
@@ -492,11 +484,10 @@ public class NetworkController : MonoBehaviour
                                 // send the packet to the player
                                 p.SendPacketUdp(recievedUdpPacket);
                                 // debug to log
-                                _asyncActions.Enqueue(() =>
-                                Console.Write("Packet resented to " + p.Name));
 
                             }
                         }
+                        Debug.Log("Position Recieved and sented to the other");
                     }
                 }
             }
@@ -764,8 +755,10 @@ public class NetworkController : MonoBehaviour
                                 _objInGame.transform.position -
                                 _playersPrefsDict[_player.Id].transform.position;
 
+                            //normalize the vector
+                            resultantForce.Normalize();
                             // add the force to the resultante Vector
-                            resultantForce *= 500f;
+                            resultantForce *= 250f;
 
                             // add the force to the obj
                             _objInGame.GetComponent<ObjController>().AddForce(
@@ -922,7 +915,7 @@ public class NetworkController : MonoBehaviour
         updateObjPacket.ObjRotation = rot;
 
         // debug on console
-        Console.Write("Update obj pos", Color.grey);
+        Debug.Log("Updating obj pos");
 
         // send this packet to all the players
         _connectedPlayers.ForEach(p =>

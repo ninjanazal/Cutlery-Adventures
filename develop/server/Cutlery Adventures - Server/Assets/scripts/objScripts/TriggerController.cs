@@ -15,11 +15,6 @@ public class TriggerController : MonoBehaviour
         _collidingObjs = new List<GameObject>();
     }
 
-    private void Update()
-    {
-
-        Debug.Log("obj colliding with player: " + _collidingObjs.Count);
-    }
     // when something enter the trigger
     private void OnTriggerEnter2D(Collider2D collision)
     {

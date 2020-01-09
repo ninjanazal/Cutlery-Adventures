@@ -50,12 +50,13 @@ public class Console : MonoBehaviour
             {
                 // dequeue the oldest line
                 _consoleLines.Dequeue();
+
             }
-            // runs the loop 1 time per x ms
             await Task.Delay(250);
+            // runs the loop 1 time per x ms
         }
     }
-    
+
 
     private void CalculateConsoleBounds()
     {

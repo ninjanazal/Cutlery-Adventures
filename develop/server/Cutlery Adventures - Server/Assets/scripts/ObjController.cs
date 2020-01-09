@@ -26,6 +26,7 @@ public class ObjController : MonoBehaviour
             _netController.UpdateObjPosition(currentPos.x, currentPos.y, transform.rotation.y);
             _oldPosition = currentPos;
         }
+
     }
 
     public void AddForce(Vector2 force)
